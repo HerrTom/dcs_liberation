@@ -4,9 +4,10 @@ from pydcs_extensions.highdigitsams import highdigitsams
 from pydcs_extensions.mb339.mb339 import MB_339PAN
 from pydcs_extensions.rafale.rafale import Rafale_M, Rafale_A_S, Rafale_B
 from pydcs_extensions.su57.su57 import Su_57
+from pydcs_extensions.miragef1.miragef1 import MirageF1
 import pydcs_extensions.frenchpack.frenchpack as frenchpack
 
-MODDED_AIRPLANES = [A_4E_C, MB_339PAN, Rafale_A_S, Rafale_M, Rafale_B, Su_57, F_22A]
+MODDED_AIRPLANES = [A_4E_C, MB_339PAN, Rafale_A_S, Rafale_M, Rafale_B, Su_57, F_22A, MirageF1]
 MODDED_VEHICLES = [
     frenchpack._FIELD_HIDE,
     frenchpack._FIELD_HIDE_SMALL,
