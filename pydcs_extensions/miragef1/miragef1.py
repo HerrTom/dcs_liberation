@@ -25,12 +25,257 @@ class MirageF1(PlaneType):
     radio_frequency = 127.5
 
     class Liveries:
+
         class USSR(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Georgia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Venezuela(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Australia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Israel(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Combined_Joint_Task_Forces_Blue(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Sudan(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Norway(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Romania(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Iran(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Ukraine(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Libya(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Belgium(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Slovakia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Greece(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class UK(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Third_Reich(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Hungary(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Abkhazia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Morocco(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class United_Nations_Peacekeepers(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Switzerland(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class SouthOssetia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Vietnam(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class China(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Yemen(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Kuwait(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Serbia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Oman(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class India(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Egypt(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class TheNetherlands(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Poland(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Syria(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Finland(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Kazakhstan(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Denmark(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Sweden(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Croatia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class CzechRepublic(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class GDR(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Yugoslavia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Bulgaria(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class SouthKorea(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Tunisia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Combined_Joint_Task_Forces_Red(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Lebanon(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Portugal(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Cuba(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Insurgents(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class SaudiArabia(Enum):
             F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
 
         class France(Enum):
             F1C_EQ5_Marine = "F1-EQ5 Marine"
             F1C_100_Blue_Used = "F1C-100 Blue Used"
+
+        class USA(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Honduras(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Qatar(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Russia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class United_Arab_Emirates(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Italian_Social_Republi(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Austria(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Bahrain(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Italy(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Chile(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Turkey(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Philippines(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Algeria(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Pakistan(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Malaysia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Indonesia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Iraq(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Germany(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class South_Africa(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Jordan(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Mexico(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class USAFAggressors(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Brazil(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Spain(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Belarus(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Canada(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class NorthKorea(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Ethiopia(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Japan(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class Thailand(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
+        class USSR(Enum):
+            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
+
     
     class Pylon1:
         Smokewinder___red = (1, Weapons.Smokewinder___red)

@@ -17,7 +17,7 @@ MODDED_AIRPLANES = [
     Su_57,
     F_22A,
     Hercules,
-    MirageF1,
+    MirageF1, 
 ]
 MODDED_VEHICLES = [
     frenchpack._FIELD_HIDE,
