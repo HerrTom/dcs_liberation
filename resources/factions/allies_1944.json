@@ -21,11 +21,12 @@
     "CT_Cromwell_IV",
     "CT_Centaur_IV",
     "HIT_Churchill_VII",
-    "M30_Cargo_Carrier",
     "LAC_M8_Greyhound",
     "TD_M10_GMC",
     "Daimler_Armoured_Car",
-    "LT_Mk_VII_Tetrarch"
+    "LT_Mk_VII_Tetrarch",
+    "AA_gun_QF_3_7",
+    "AAA_Bofors_40mm"
   ],
   "artillery_units": [
     "M12_GMC"

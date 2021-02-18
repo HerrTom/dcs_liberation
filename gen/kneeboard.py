@@ -26,15 +26,14 @@ import datetime
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 from dcs.mission import Mission
 from dcs.unittype import FlyingType
 from tabulate import tabulate
 
-from game.utils import meter_to_nm
-from . import units
+from game.utils import meters
 from .aircraft import AIRCRAFT_DATA, FlightData
 from .airsupportgen import AwacsInfo, TankerInfo
 from .briefinggen import CommInfo, JtacInfo, MissionInfoGenerator
@@ -44,11 +43,13 @@ from .runways import RunwayData
 
 if TYPE_CHECKING:
     from game import Game
+
+
 class KneeboardPageWriter:
     """Creates kneeboard images."""
 
     def __init__(self, page_margin: int = 24, line_spacing: int = 12) -> None:
-        self.image = Image.new('RGB', (768, 1024), (0xff, 0xff, 0xff))
+        self.image = Image.new("RGB", (768, 1024), (0xFF, 0xFF, 0xFF))
         # These font sizes create a relatively full page for current sorties. If
         # we start generating more complicated flight plans, or start including
         # more information in the comm ladder (the latter of which we should
@@ -57,8 +58,7 @@ class KneeboardPageWriter:
         self.title_font = ImageFont.truetype("arial.ttf", 32)
         self.heading_font = ImageFont.truetype("arial.ttf", 24)
         self.content_font = ImageFont.truetype("arial.ttf", 20)
-        self.table_font = ImageFont.truetype(
-            "resources/fonts/Inconsolata.otf", 20)
+        self.table_font = ImageFont.truetype("resources/fonts/Inconsolata.otf", 20)
         self.draw = ImageDraw.Draw(self.image)
         self.x = page_margin
         self.y = page_margin
@@ -68,8 +68,9 @@ class KneeboardPageWriter:
     def position(self) -> Tuple[int, int]:
         return self.x, self.y
 
-    def text(self, text: str, font=None,
-             fill: Tuple[int, int, int] = (0, 0, 0)) -> None:
+    def text(
+        self, text: str, font=None, fill: Tuple[int, int, int] = (0, 0, 0)
+    ) -> None:
         if font is None:
             font = self.content_font
 
@@ -83,8 +84,9 @@ class KneeboardPageWriter:
     def heading(self, text: str) -> None:
         self.text(text, font=self.heading_font)
 
-    def table(self, cells: List[List[str]],
-              headers: Optional[List[str]] = None) -> None:
+    def table(
+        self, cells: List[List[str]], headers: Optional[List[str]] = None
+    ) -> None:
         if headers is None:
             headers = []
         table = tabulate(cells, headers=headers, numalign="right")
@@ -92,6 +94,23 @@ class KneeboardPageWriter:
 
     def write(self, path: Path) -> None:
         self.image.save(path)
+
+    @staticmethod
+    def wrap_line(inputstr: str, max_length: int) -> str:
+        if len(inputstr) <= max_length:
+            return inputstr
+        tokens = inputstr.split(" ")
+        output = ""
+        segments = []
+        for token in tokens:
+            combo = output + " " + token
+            if len(combo) > max_length:
+                combo = output + "\n" + token
+                segments.append(combo)
+                output = ""
+            else:
+                output = combo
+        return "".join(segments + [output]).strip()
 
 
 class KneeboardPage:
@@ -109,6 +128,9 @@ class NumberedWaypoint:
 
 
 class FlightPlanBuilder:
+
+    WAYPOINT_DESC_MAX_LEN = 25
+
     def __init__(self, start_time: datetime.datetime) -> None:
         self.start_time = start_time
         self.rows: List[List[str]] = []
@@ -136,27 +158,34 @@ class FlightPlanBuilder:
         first_waypoint_num = self.target_points[0].number
         last_waypoint_num = self.target_points[-1].number
 
-        self.rows.append([
-            f"{first_waypoint_num}-{last_waypoint_num}",
-            "Target points",
-            "0",
-            self._waypoint_distance(self.target_points[0].waypoint),
-            self._ground_speed(self.target_points[0].waypoint),
-            self._format_time(self.target_points[0].waypoint.tot),
-            self._format_time(self.target_points[0].waypoint.departure_time),
-        ])
+        self.rows.append(
+            [
+                f"{first_waypoint_num}-{last_waypoint_num}",
+                "Target points",
+                "0",
+                self._waypoint_distance(self.target_points[0].waypoint),
+                self._ground_speed(self.target_points[0].waypoint),
+                self._format_time(self.target_points[0].waypoint.tot),
+                self._format_time(self.target_points[0].waypoint.departure_time),
+            ]
+        )
         self.last_waypoint = self.target_points[-1].waypoint
 
     def add_waypoint_row(self, waypoint: NumberedWaypoint) -> None:
-        self.rows.append([
-            str(waypoint.number),
-            waypoint.waypoint.pretty_name,
-            str(int(units.meters_to_feet(waypoint.waypoint.alt))),
-            self._waypoint_distance(waypoint.waypoint),
-            self._ground_speed(waypoint.waypoint),
-            self._format_time(waypoint.waypoint.tot),
-            self._format_time(waypoint.waypoint.departure_time),
-        ])
+        self.rows.append(
+            [
+                str(waypoint.number),
+                KneeboardPageWriter.wrap_line(
+                    waypoint.waypoint.pretty_name,
+                    FlightPlanBuilder.WAYPOINT_DESC_MAX_LEN,
+                ),
+                str(int(waypoint.waypoint.alt.feet)),
+                self._waypoint_distance(waypoint.waypoint),
+                self._ground_speed(waypoint.waypoint),
+                self._format_time(waypoint.waypoint.tot),
+                self._format_time(waypoint.waypoint.departure_time),
+            ]
+        )
 
     def _format_time(self, time: Optional[datetime.timedelta]) -> str:
         if time is None:
@@ -168,10 +197,10 @@ class FlightPlanBuilder:
         if self.last_waypoint is None:
             return "-"
 
-        distance = meter_to_nm(self.last_waypoint.position.distance_to_point(
-            waypoint.position
-        ))
-        return f"{distance} NM"
+        distance = meters(
+            self.last_waypoint.position.distance_to_point(waypoint.position)
+        )
+        return f"{distance.nautical_miles:.1f} NM"
 
     def _ground_speed(self, waypoint: FlightWaypoint) -> str:
         if self.last_waypoint is None:
@@ -187,11 +216,11 @@ class FlightPlanBuilder:
         else:
             return "-"
 
-        distance = meter_to_nm(self.last_waypoint.position.distance_to_point(
-            waypoint.position
-        ))
+        distance = meters(
+            self.last_waypoint.position.distance_to_point(waypoint.position)
+        )
         duration = (waypoint.tot - last_time).total_seconds() / 3600
-        return f"{int(distance / duration)} kt"
+        return f"{int(distance.nautical_miles / duration)} kt"
 
     def build(self) -> List[List[str]]:
         return self.rows
@@ -199,9 +228,16 @@ class FlightPlanBuilder:
 
 class BriefingPage(KneeboardPage):
     """A kneeboard page containing briefing information."""
-    def __init__(self, flight: FlightData, comms: List[CommInfo],
-                 awacs: List[AwacsInfo], tankers: List[TankerInfo],
-                 jtacs: List[JtacInfo], start_time: datetime.datetime) -> None:
+
+    def __init__(
+        self,
+        flight: FlightData,
+        comms: List[CommInfo],
+        awacs: List[AwacsInfo],
+        tankers: List[TankerInfo],
+        jtacs: List[JtacInfo],
+        start_time: datetime.datetime,
+    ) -> None:
         self.flight = flight
         self.comms = list(comms)
         self.awacs = awacs
@@ -216,51 +252,59 @@ class BriefingPage(KneeboardPage):
 
         # TODO: Handle carriers.
         writer.heading("Airfield Info")
-        writer.table([
-            self.airfield_info_row("Departure", self.flight.departure),
-            self.airfield_info_row("Arrival", self.flight.arrival),
-            self.airfield_info_row("Divert", self.flight.divert),
-        ], headers=["", "Airbase", "ATC", "TCN", "I(C)LS", "RWY"])
+        writer.table(
+            [
+                self.airfield_info_row("Departure", self.flight.departure),
+                self.airfield_info_row("Arrival", self.flight.arrival),
+                self.airfield_info_row("Divert", self.flight.divert),
+            ],
+            headers=["", "Airbase", "ATC", "TCN", "I(C)LS", "RWY"],
+        )
 
         writer.heading("Flight Plan")
         flight_plan_builder = FlightPlanBuilder(self.start_time)
         for num, waypoint in enumerate(self.flight.waypoints):
             flight_plan_builder.add_waypoint(num, waypoint)
-        writer.table(flight_plan_builder.build(), headers=[
-            "#", "Action", "Alt", "Dist", "GSPD", "Time", "Departure"
-        ])
+        writer.table(
+            flight_plan_builder.build(),
+            headers=["#", "Action", "Alt", "Dist", "GSPD", "Time", "Departure"],
+        )
 
         flight_plan_builder
-        writer.table([
-            ["{}lbs".format(self.flight.bingo_fuel), "{}lbs".format(self.flight.joker_fuel)]
-        ], ['Bingo', 'Joker'])
+        writer.table(
+            [
+                [
+                    "{}lbs".format(self.flight.bingo_fuel),
+                    "{}lbs".format(self.flight.joker_fuel),
+                ]
+            ],
+            ["Bingo", "Joker"],
+        )
 
         # Package Section
         writer.heading("Comm ladder")
         comm_ladder = []
         for comm in self.comms:
-            comm_ladder.append([comm.name, '', '', '', self.format_frequency(comm.freq)])
+            comm_ladder.append(
+                [comm.name, "", "", "", self.format_frequency(comm.freq)]
+            )
 
         for a in self.awacs:
-            comm_ladder.append([
-                a.callsign,
-                'AWACS',
-                '',
-                '',
-                self.format_frequency(a.freq)
-            ])
+            comm_ladder.append(
+                [a.callsign, "AWACS", "", "", self.format_frequency(a.freq)]
+            )
         for tanker in self.tankers:
-            comm_ladder.append([
-                tanker.callsign,
-                "Tanker",
-                tanker.variant,
-                str(tanker.tacan),
-                self.format_frequency(tanker.freq),
-            ])        
+            comm_ladder.append(
+                [
+                    tanker.callsign,
+                    "Tanker",
+                    tanker.variant,
+                    str(tanker.tacan),
+                    self.format_frequency(tanker.freq),
+                ]
+            )
 
-        
-        writer.table(comm_ladder, headers=["Callsign","Task", "Type", "TACAN", "FREQ"])
-
+        writer.table(comm_ladder, headers=["Callsign", "Task", "Type", "TACAN", "FREQ"])
 
         writer.heading("JTAC")
         jtacs = []
@@ -270,8 +314,9 @@ class BriefingPage(KneeboardPage):
 
         writer.write(path)
 
-    def airfield_info_row(self, row_title: str,
-                          runway: Optional[RunwayData]) -> List[str]:
+    def airfield_info_row(
+        self, row_title: str, runway: Optional[RunwayData]
+    ) -> List[str]:
         """Creates a table row for a given airfield.
 
         Args:
@@ -351,7 +396,8 @@ class KneeboardGenerator(MissionInfoGenerator):
             if not flight.client_units:
                 continue
             all_flights[flight.aircraft_type].extend(
-                self.generate_flight_kneeboard(flight))
+                self.generate_flight_kneeboard(flight)
+            )
         return all_flights
 
     def generate_flight_kneeboard(self, flight: FlightData) -> List[KneeboardPage]:
@@ -363,6 +409,6 @@ class KneeboardGenerator(MissionInfoGenerator):
                 self.awacs,
                 self.tankers,
                 self.jtacs,
-                self.mission.start_time
+                self.mission.start_time,
             ),
         ]

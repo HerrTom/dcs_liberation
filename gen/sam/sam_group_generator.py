@@ -11,7 +11,9 @@ from game.theater.theatergroundobject import SamGroundObject
 from gen.sam.aaa_bofors import BoforsGenerator
 from gen.sam.aaa_flak import FlakGenerator
 from gen.sam.aaa_flak18 import Flak18Generator
+from gen.sam.aaa_ks19 import KS19Generator
 from gen.sam.aaa_ww2_ally_flak import AllyWW2FlakGenerator
+from gen.sam.aaa_zsu57 import ZSU57Generator
 from gen.sam.aaa_zu23_insurgent import ZU23InsurgentGenerator
 from gen.sam.airdefensegroupgenerator import (
     AirDefenseGroupGenerator,
@@ -48,10 +50,16 @@ from gen.sam.sam_sa10 import (
     SA10Generator,
     Tier2SA10Generator,
     Tier3SA10Generator,
+    SA10BGenerator,
+    SA12Generator,
+    SA20Generator,
+    SA20BGenerator,
+    SA23Generator,
 )
 from gen.sam.sam_sa11 import SA11Generator
 from gen.sam.sam_sa13 import SA13Generator
 from gen.sam.sam_sa15 import SA15Generator
+from gen.sam.sam_sa17 import SA17Generator
 from gen.sam.sam_sa19 import SA19Generator
 from gen.sam.sam_sa2 import SA2Generator
 from gen.sam.sam_sa3 import SA3Generator
@@ -98,7 +106,15 @@ SAM_MAP: Dict[str, Type[AirDefenseGroupGenerator]] = {
     "ColdWarFlakGenerator": ColdWarFlakGenerator,
     "EarlyColdWarFlakGenerator": EarlyColdWarFlakGenerator,
     "FreyaGenerator": FreyaGenerator,
-    "AllyWW2FlakGenerator": AllyWW2FlakGenerator
+    "AllyWW2FlakGenerator": AllyWW2FlakGenerator,
+    "ZSU57Generator": ZSU57Generator,
+    "KS19Generator": KS19Generator,
+    "SA10BGenerator": SA10BGenerator,
+    "SA12Generator": SA12Generator,
+    "SA17Generator": SA17Generator,
+    "SA20Generator": SA20Generator,
+    "SA20BGenerator": SA20BGenerator,
+    "SA23Generator": SA23Generator,
 }
 
 
@@ -133,7 +149,7 @@ SAM_PRICES = {
     AirDefence.SAM_SA_13_Strela_10M3_9A35M3: 30,
     AirDefence.SAM_SA_15_Tor_9A331: 40,
     AirDefence.SAM_SA_19_Tunguska_2S6: 35,
-    AirDefence.HQ_7_Self_Propelled_LN: 35
+    AirDefence.HQ_7_Self_Propelled_LN: 35,
 }
 
 EWR_MAP = {
@@ -151,7 +167,8 @@ EWR_MAP = {
 
 
 def get_faction_possible_sams_generator(
-        faction: Faction) -> List[Type[AirDefenseGroupGenerator]]:
+    faction: Faction,
+) -> List[Type[AirDefenseGroupGenerator]]:
     """
     Return the list of possible SAM generator for the given faction
     :param faction: Faction name to search units for
@@ -168,20 +185,24 @@ def get_faction_possible_ewrs_generator(faction: Faction) -> List[Type[GroupGene
 
 
 def _generate_anti_air_from(
-        generators: Sequence[Type[AirDefenseGroupGenerator]], game: Game,
-        ground_object: SamGroundObject) -> Optional[VehicleGroup]:
+    generators: Sequence[Type[AirDefenseGroupGenerator]],
+    game: Game,
+    ground_object: SamGroundObject,
+) -> List[VehicleGroup]:
     if not generators:
-        return None
+        return []
     sam_generator_class = random.choice(generators)
     generator = sam_generator_class(game, ground_object)
     generator.generate()
-    return generator.get_generated_group()
+    return list(generator.groups)
 
 
 def generate_anti_air_group(
-        game: Game, ground_object: SamGroundObject, faction: Faction,
-        ranges: Optional[Iterable[Set[AirDefenseRange]]] = None
-) -> Optional[VehicleGroup]:
+    game: Game,
+    ground_object: SamGroundObject,
+    faction: Faction,
+    ranges: Optional[Iterable[Set[AirDefenseRange]]] = None,
+) -> List[VehicleGroup]:
     """
     This generate a SAM group
     :param game: The Game.
@@ -201,24 +222,25 @@ def generate_anti_air_group(
     """
     generators = get_faction_possible_sams_generator(faction)
     if ranges is None:
-        ranges = [{
-            AirDefenseRange.Long,
-            AirDefenseRange.Medium,
-            AirDefenseRange.Short,
-        }]
+        ranges = [
+            {
+                AirDefenseRange.Long,
+                AirDefenseRange.Medium,
+                AirDefenseRange.Short,
+            }
+        ]
 
     for range_options in ranges:
-        generators_for_range = [g for g in generators if
-                                g.range() in range_options]
-        group = _generate_anti_air_from(generators_for_range, game,
-                                        ground_object)
-        if group is not None:
-            return group
-    return None
+        generators_for_range = [g for g in generators if g.range() in range_options]
+        groups = _generate_anti_air_from(generators_for_range, game, ground_object)
+        if groups:
+            return groups
+    return []
 
 
-def generate_ewr_group(game: Game, ground_object: TheaterGroundObject,
-                       faction: Faction) -> Optional[VehicleGroup]:
+def generate_ewr_group(
+    game: Game, ground_object: TheaterGroundObject, faction: Faction
+) -> Optional[VehicleGroup]:
     """Generates an early warning radar group.
 
     :param game: The Game.

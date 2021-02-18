@@ -5,8 +5,10 @@ from PySide2.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
     QWidget,
+    QMessageBox,
 )
 from dcs.task import PinpointStrike
+from dcs.unittype import FlyingType, UnitType
 
 from game import db
 from game.theater import ControlPoint
@@ -15,7 +17,6 @@ from qt_ui.windows.basemenu.QRecruitBehaviour import QRecruitBehaviour
 
 
 class QArmorRecruitmentMenu(QFrame, QRecruitBehaviour):
-
     def __init__(self, cp: ControlPoint, game_model: GameModel):
         QFrame.__init__(self)
         self.cp = cp
@@ -30,8 +31,9 @@ class QArmorRecruitmentMenu(QFrame, QRecruitBehaviour):
         main_layout = QVBoxLayout()
 
         units = {
-            PinpointStrike: db.find_unittype(PinpointStrike,
-                                             self.game_model.game.player_name),
+            PinpointStrike: db.find_unittype(
+                PinpointStrike, self.game_model.game.player_name
+            ),
         }
 
         scroll_content = QWidget()
@@ -41,8 +43,13 @@ class QArmorRecruitmentMenu(QFrame, QRecruitBehaviour):
 
         for task_type in units.keys():
             units_column = list(set(units[task_type]))
-            if len(units_column) == 0: continue
-            units_column.sort(key=lambda x: db.PRICES[x])
+            if len(units_column) == 0:
+                continue
+            units_column.sort(
+                key=lambda u: db.unit_get_expanded_info(
+                    self.game_model.game.player_country, u, "name"
+                )
+            )
             for unit_type in units_column:
                 row = self.add_purchase_row(unit_type, task_box_layout, row)
             stretch = QVBoxLayout()
@@ -57,3 +64,15 @@ class QArmorRecruitmentMenu(QFrame, QRecruitBehaviour):
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
         self.setLayout(main_layout)
+
+    def sell(self, unit_type: UnitType):
+        if self.pending_deliveries.available_next_turn(unit_type) <= 0:
+            QMessageBox.critical(
+                self,
+                "Could not sell ground unit",
+                f"Attempted to sell one {unit_type.id} at {self.cp.name} "
+                "but none are available.",
+                QMessageBox.Ok,
+            )
+            return
+        super().sell(unit_type)

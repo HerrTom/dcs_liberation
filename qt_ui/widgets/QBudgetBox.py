@@ -1,6 +1,7 @@
 from PySide2.QtWidgets import QLabel, QHBoxLayout, QGroupBox, QPushButton
 
 import qt_ui.uiconstants as CONST
+from game.income import Income
 from qt_ui.windows.finances.QFinancesMenu import QFinancesMenu
 
 
@@ -34,14 +35,16 @@ class QBudgetBox(QGroupBox):
         :param budget: Current money available
         :param reward: Planned reward for next turn
         """
-        self.money_amount.setText(str(budget) + "M (+" + str(reward) + "M)")
+        self.money_amount.setText(
+            str(round(budget, 2)) + "M (+" + str(round(reward, 2)) + "M)"
+        )
 
     def setGame(self, game):
         if game is None:
             return
 
         self.game = game
-        self.setBudget(self.game.budget, self.game.budget_reward_amount)
+        self.setBudget(self.game.budget, Income(self.game, player=True).total)
         self.finances.setEnabled(True)
 
     def openFinances(self):

@@ -6,12 +6,6 @@ from dcs.forcedoptions import ForcedOptions
 
 @dataclass
 class Settings:
-    # Generator settings
-    inverted: bool = False
-    do_not_generate_carrier: bool = False
-    do_not_generate_lha: bool = False
-    do_not_generate_player_navy: bool = False
-    do_not_generate_enemy_navy: bool = False
 
     # Difficulty settings
     player_skill: str = "Good"
@@ -23,12 +17,20 @@ class Settings:
     night_disabled: bool = False
     external_views_allowed: bool = True
     supercarrier: bool = False
-    multiplier: float = 1.0
     generate_marks: bool = True
-    sams: bool = True  # Legacy parameter do not use
     manpads: bool = True
-    cold_start: bool = False  # Legacy parameter do not use
     version: Optional[str] = None
+    player_income_multiplier: float = 1.0
+    enemy_income_multiplier: float = 1.0
+
+    default_start_type: str = "Cold"
+
+    # Campaign management
+    automate_runway_repair: bool = False
+    automate_front_line_reinforcements: bool = False
+    automate_aircraft_reinforcements: bool = False
+    restrict_weapons_by_date: bool = False
+    disable_legacy_aewc: bool = False
 
     # Performance oriented
     perf_red_alert_state: bool = True
@@ -36,7 +38,6 @@ class Settings:
     perf_artillery: bool = True
     perf_moving_units: bool = True
     perf_infantry: bool = True
-    perf_ai_parking_start: bool = True
     perf_destroyed_units: bool = True
 
     # Performance culling
@@ -49,6 +50,8 @@ class Settings:
 
     # Cheating
     show_red_ato: bool = False
+    enable_frontline_cheats: bool = False
+    enable_base_capture_cheat: bool = False
 
     never_delay_player_flights: bool = False
 
@@ -56,8 +59,7 @@ class Settings:
     def plugin_settings_key(identifier: str) -> str:
         return f"plugins.{identifier}"
 
-    def initialize_plugin_option(self, identifier: str,
-                                 default_value: bool) -> None:
+    def initialize_plugin_option(self, identifier: str, default_value: bool) -> None:
         try:
             self.plugin_option(identifier)
         except KeyError:

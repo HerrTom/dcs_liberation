@@ -23,8 +23,9 @@ class QMapObject(QGraphicsRectItem):
     change the mouse cursor on hover.
     """
 
-    def __init__(self, x: float, y: float, w: float, h: float,
-                 mission_target: MissionTarget) -> None:
+    def __init__(
+        self, x: float, y: float, w: float, h: float, mission_target: MissionTarget
+    ) -> None:
         super().__init__(x, y, w, h)
         self.mission_target = mission_target
         self.new_package_dialog: Optional[QNewPackageDialog] = None
@@ -47,7 +48,7 @@ class QMapObject(QGraphicsRectItem):
         object_details_action.triggered.connect(self.on_click)
         menu.addAction(object_details_action)
 
-        # Not all locations have valid objetives. Off-map spawns, for example,
+        # Not all locations have valid objectives. Off-map spawns, for example,
         # have no mission types.
         if list(self.mission_target.mission_types(for_player=True)):
             new_package_action = QAction(f"New package")

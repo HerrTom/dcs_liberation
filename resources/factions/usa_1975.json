@@ -7,12 +7,18 @@
     "F_5E_3",
     "F_4E",
     "F_14A_135_GR",
+    "S_3B",
     "B_52H",
     "UH_1H"
   ],
+  "awacs": [
+    "E_2C"
+  ],
   "frontline_units": [
     "MBT_M60A3_Patton",
-    "APC_M113"
+    "APC_M113",
+    "SAM_Chaparral_M48",
+    "AAA_Vulcan_M163"
   ],
   "artillery_units": [
     "SPH_M109_Paladin"

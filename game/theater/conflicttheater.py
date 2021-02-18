@@ -9,6 +9,9 @@ from itertools import tee
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union, cast
 
+from shapely import geometry
+from shapely import ops
+
 from dcs import Mission
 from dcs.countries import (
     CombinedJointTaskForcesBlue,
@@ -52,7 +55,8 @@ from .controlpoint import (
     Fob,
 )
 from .landmap import Landmap, load_landmap, poly_contains
-from ..utils import nm_to_meter
+from ..point_with_heading import PointWithHeading
+from ..utils import Distance, meters, nautical_miles
 
 Numeric = Union[int, float]
 
@@ -67,6 +71,7 @@ IMPORTANCE_MEDIUM = 1.2
 IMPORTANCE_HIGH = 1.4
 
 FRONTLINE_MIN_CP_DISTANCE = 5000
+
 
 def pairwise(iterable):
     """
@@ -112,7 +117,7 @@ class MizCampaignLoader:
         AirDefence.SAM_SA_3_S_125_LN_5P73.id,
     }
 
-    BASE_DEFENSE_RADIUS = nm_to_meter(2)
+    BASE_DEFENSE_RADIUS = nautical_miles(2)
 
     def __init__(self, miz: Path, theater: ConflictTheater) -> None:
         self.theater = theater
@@ -153,7 +158,8 @@ class MizCampaignLoader:
 
     def country(self, blue: bool) -> Country:
         country = self.mission.country(
-            self.BLUE_COUNTRY.name if blue else self.RED_COUNTRY.name)
+            self.BLUE_COUNTRY.name if blue else self.RED_COUNTRY.name
+        )
         # Should be guaranteed because we initialized them.
         assert country
         return country
@@ -180,7 +186,7 @@ class MizCampaignLoader:
         for group in self.country(blue).ship_group:
             if group.units[0].type == self.LHA_UNIT_TYPE:
                 yield group
-    
+
     def fobs(self, blue: bool) -> Iterator[VehicleGroup]:
         for group in self.country(blue).vehicle_group:
             if group.units[0].type == self.FOB_UNIT_TYPE:
@@ -250,22 +256,23 @@ class MizCampaignLoader:
 
         for blue in (False, True):
             for group in self.off_map_spawns(blue):
-                control_point = OffMapSpawn(next(self.control_point_id),
-                                            str(group.name), group.position)
+                control_point = OffMapSpawn(
+                    next(self.control_point_id), str(group.name), group.position
+                )
                 control_point.captured = blue
                 control_point.captured_invert = group.late_activation
                 control_points[control_point.id] = control_point
             for group in self.carriers(blue):
                 # TODO: Name the carrier.
                 control_point = Carrier(
-                    "carrier", group.position, next(self.control_point_id))
+                    "carrier", group.position, next(self.control_point_id)
+                )
                 control_point.captured = blue
                 control_point.captured_invert = group.late_activation
                 control_points[control_point.id] = control_point
             for group in self.lhas(blue):
                 # TODO: Name the LHA.
-                control_point = Lha(
-                    "lha", group.position, next(self.control_point_id))
+                control_point = Lha("lha", group.position, next(self.control_point_id))
                 control_point.captured = blue
                 control_point.captured_invert = group.late_activation
                 control_points[control_point.id] = control_point
@@ -294,78 +301,92 @@ class MizCampaignLoader:
             # final waypoint at the destination CP. Intermediate waypoints
             # define the curve of the front line.
             waypoints = [p.position for p in group.points]
-            origin =  self.theater.closest_control_point(waypoints[0])
+            origin = self.theater.closest_control_point(waypoints[0])
             if origin is None:
                 raise RuntimeError(
-                    f"No control point near the first waypoint of {group.name}")
+                    f"No control point near the first waypoint of {group.name}"
+                )
             destination = self.theater.closest_control_point(waypoints[-1])
             if destination is None:
                 raise RuntimeError(
-                    f"No control point near the final waypoint of {group.name}")
+                    f"No control point near the final waypoint of {group.name}"
+                )
 
             # Snap the begin and end points to the control points.
             waypoints[0] = origin.position
             waypoints[-1] = destination.position
             front_line_id = f"{origin.id}|{destination.id}"
             front_lines[front_line_id] = ComplexFrontLine(origin, waypoints)
-            self.control_points[origin.id].connect(
-                self.control_points[destination.id])
-            self.control_points[destination.id].connect(
-                self.control_points[origin.id])
+            self.control_points[origin.id].connect(self.control_points[destination.id])
+            self.control_points[destination.id].connect(self.control_points[origin.id])
         return front_lines
 
-    def objective_info(self, group: Group) -> Tuple[ControlPoint, int]:
+    def objective_info(self, group: Group) -> Tuple[ControlPoint, Distance]:
         closest = self.theater.closest_control_point(group.position)
-        distance = closest.position.distance_to_point(group.position)
+        distance = meters(closest.position.distance_to_point(group.position))
         return closest, distance
 
     def add_preset_locations(self) -> None:
         for group in self.garrisons:
             closest, distance = self.objective_info(group)
             if distance < self.BASE_DEFENSE_RADIUS:
-                closest.preset_locations.base_garrisons.append(group.position)
+                closest.preset_locations.base_garrisons.append(
+                    PointWithHeading.from_point(group.position, group.units[0].heading)
+                )
             else:
-                logging.warning(
-                    f"Found garrison unit too far from base: {group.name}")
+                logging.warning(f"Found garrison unit too far from base: {group.name}")
 
         for group in self.sams:
             closest, distance = self.objective_info(group)
             if distance < self.BASE_DEFENSE_RADIUS:
-                closest.preset_locations.base_air_defense.append(group.position)
+                closest.preset_locations.base_air_defense.append(
+                    PointWithHeading.from_point(group.position, group.units[0].heading)
+                )
             else:
-                closest.preset_locations.strike_locations.append(group.position)
+                closest.preset_locations.strike_locations.append(
+                    PointWithHeading.from_point(group.position, group.units[0].heading)
+                )
 
         for group in self.ewrs:
             closest, distance = self.objective_info(group)
-            closest.preset_locations.ewrs.append(group.position)
+            closest.preset_locations.ewrs.append(
+                PointWithHeading.from_point(group.position, group.units[0].heading)
+            )
 
         for group in self.offshore_strike_targets:
             closest, distance = self.objective_info(group)
             closest.preset_locations.offshore_strike_locations.append(
-                group.position)
+                PointWithHeading.from_point(group.position, group.units[0].heading)
+            )
 
         for group in self.ships:
             closest, distance = self.objective_info(group)
-            closest.preset_locations.ships.append(group.position)
+            closest.preset_locations.ships.append(
+                PointWithHeading.from_point(group.position, group.units[0].heading)
+            )
 
         for group in self.missile_sites:
             closest, distance = self.objective_info(group)
-            closest.preset_locations.missile_sites.append(group.position)
+            closest.preset_locations.missile_sites.append(
+                PointWithHeading.from_point(group.position, group.units[0].heading)
+            )
 
         for group in self.coastal_defenses:
             closest, distance = self.objective_info(group)
-            closest.preset_locations.coastal_defenses.append(group.position)
+            closest.preset_locations.coastal_defenses.append(
+                PointWithHeading.from_point(group.position, group.units[0].heading)
+            )
 
         for group in self.required_long_range_sams:
             closest, distance = self.objective_info(group)
             closest.preset_locations.required_long_range_sams.append(
-                group.position
+                PointWithHeading.from_point(group.position, group.units[0].heading)
             )
 
         for group in self.required_medium_range_sams:
             closest, distance = self.objective_info(group)
             closest.preset_locations.required_medium_range_sams.append(
-                group.position
+                PointWithHeading.from_point(group.position, group.units[0].heading)
             )
 
     def populate_theater(self) -> None:
@@ -375,10 +396,16 @@ class MizCampaignLoader:
         self.theater.set_frontline_data(self.front_lines)
 
 
+@dataclass
+class ReferencePoint:
+    world_coordinates: Point
+    image_coordinates: Point
+
+
 class ConflictTheater:
     terrain: Terrain
 
-    reference_points: Dict[Tuple[float, float], Tuple[float, float]]
+    reference_points: Tuple[ReferencePoint, ReferencePoint]
     overview_image: str
     landmap: Optional[Landmap]
     """
@@ -414,8 +441,9 @@ class ConflictTheater:
             logging.warning("Replacing existing frontline data")
         self._frontline_data = data
 
-    def add_controlpoint(self, point: ControlPoint,
-                         connected_to: Optional[List[ControlPoint]] = None):
+    def add_controlpoint(
+        self, point: ControlPoint, connected_to: Optional[List[ControlPoint]] = None
+    ):
         if connected_to is None:
             connected_to = []
         for connected_point in connected_to:
@@ -438,7 +466,11 @@ class ConflictTheater:
         if self.is_on_land(point):
             return False
 
-        for sea in self.landmap[2]:
+        for exclusion_zone in self.landmap.exclusion_zones:
+            if poly_contains(point.x, point.y, exclusion_zone):
+                return False
+
+        for sea in self.landmap.sea_zones:
             if poly_contains(point.x, point.y, sea):
                 return True
 
@@ -449,29 +481,63 @@ class ConflictTheater:
             return True
 
         is_point_included = False
-        for inclusion_zone in self.landmap[0]:
-            if poly_contains(point.x, point.y, inclusion_zone):
-                is_point_included = True
+        if poly_contains(point.x, point.y, self.landmap.inclusion_zones):
+            is_point_included = True
 
         if not is_point_included:
             return False
 
-        for exclusion_zone in self.landmap[1]:
+        for exclusion_zone in self.landmap.exclusion_zones:
             if poly_contains(point.x, point.y, exclusion_zone):
                 return False
 
         return True
 
+    def nearest_land_pos(self, point: Point, extend_dist: int = 50) -> Point:
+        """Returns the nearest point inside a land exclusion zone from point
+        `extend_dist` determines how far inside the zone the point should be placed"""
+        if self.is_on_land(point):
+            return point
+        point = geometry.Point(point.x, point.y)
+        nearest_points = []
+        if not self.landmap:
+            raise RuntimeError("Landmap not initialized")
+        for inclusion_zone in self.landmap.inclusion_zones:
+            nearest_pair = ops.nearest_points(point, inclusion_zone)
+            nearest_points.append(nearest_pair[1])
+        min_distance = point.distance(nearest_points[0])  # type: geometry.Point
+        nearest_point = nearest_points[0]  # type: geometry.Point
+        for pt in nearest_points[1:]:
+            distance = point.distance(pt)
+            if distance < min_distance:
+                min_distance = distance
+                nearest_point = pt
+        assert isinstance(nearest_point, geometry.Point)
+        point = Point(point.x, point.y)
+        nearest_point = Point(nearest_point.x, nearest_point.y)
+        new_point = point.point_from_heading(
+            point.heading_between_point(nearest_point),
+            point.distance_to_point(nearest_point) + extend_dist,
+        )
+        return new_point
+
+    def control_points_for(self, player: bool) -> Iterator[ControlPoint]:
+        for point in self.controlpoints:
+            if point.captured == player:
+                yield point
+
     def player_points(self) -> List[ControlPoint]:
-        return [point for point in self.controlpoints if point.captured]
+        return list(self.control_points_for(player=True))
 
     def conflicts(self, from_player=True) -> Iterator[FrontLine]:
         for cp in [x for x in self.controlpoints if x.captured == from_player]:
-            for connected_point in [x for x in cp.connected_points if x.captured != from_player]:
+            for connected_point in [
+                x for x in cp.connected_points if x.captured != from_player
+            ]:
                 yield FrontLine(cp, connected_point, self)
 
     def enemy_points(self) -> List[ControlPoint]:
-        return [point for point in self.controlpoints if not point.captured]
+        return list(self.control_points_for(player=False))
 
     def closest_control_point(self, point: Point) -> ControlPoint:
         closest = self.controlpoints[0]
@@ -482,7 +548,27 @@ class ConflictTheater:
                 closest = control_point
                 closest_distance = distance
         return closest
-    
+
+    def closest_target(self, point: Point) -> MissionTarget:
+        closest: MissionTarget = self.controlpoints[0]
+        closest_distance = point.distance_to_point(closest.position)
+        for control_point in self.controlpoints[1:]:
+            distance = point.distance_to_point(control_point.position)
+            if distance < closest_distance:
+                closest = control_point
+                closest_distance = distance
+            for tgo in control_point.ground_objects:
+                distance = point.distance_to_point(tgo.position)
+                if distance < closest_distance:
+                    closest = tgo
+                    closest_distance = distance
+        for conflict in self.conflicts():
+            distance = conflict.position.distance_to_point(point)
+            if distance < closest_distance:
+                closest = conflict
+                closest_distance = distance
+        return closest
+
     def closest_opposing_control_points(self) -> Tuple[ControlPoint, ControlPoint]:
         """
         Returns a tuple of the two nearest opposing ControlPoints in theater.
@@ -500,19 +586,24 @@ class ConflictTheater:
                         distances[cp.id] = dist
                     if dist < closest_distance:
                         distances[cp.id] = dist
-            closest_cp_id = min(distances, key=distances.get)
+            closest_cp_id = min(distances, key=distances.get)  # type: ignore
 
-            all_cp_min_distances[(control_point.id, closest_cp_id)] = distances[closest_cp_id]
+            all_cp_min_distances[(control_point.id, closest_cp_id)] = distances[
+                closest_cp_id
+            ]
         closest_opposing_cps = [
             self.find_control_point_by_id(i)
-            for i
-            in min(all_cp_min_distances, key=all_cp_min_distances.get)
-          ]  # type: List[ControlPoint]
+            for i in min(
+                all_cp_min_distances, key=all_cp_min_distances.get
+            )  # type: ignore
+        ]  # type: List[ControlPoint]
         assert len(closest_opposing_cps) == 2
         if closest_opposing_cps[0].captured:
             return cast(Tuple[ControlPoint, ControlPoint], tuple(closest_opposing_cps))
         else:
-            return cast(Tuple[ControlPoint, ControlPoint], tuple(reversed(closest_opposing_cps)))
+            return cast(
+                Tuple[ControlPoint, ControlPoint], tuple(reversed(closest_opposing_cps))
+            )
 
     def find_control_point_by_id(self, id: int) -> ControlPoint:
         for i in self.controlpoints:
@@ -548,7 +639,7 @@ class ConflictTheater:
             cp.captured_invert = False
 
         return cp
-        
+
     @staticmethod
     def from_json(directory: Path, data: Dict[str, Any]) -> ConflictTheater:
         theaters = {
@@ -584,13 +675,15 @@ class ConflictTheater:
             cps[l[1]].connect(cps[l[0]])
 
         return t
-    
+
 
 class CaucasusTheater(ConflictTheater):
     terrain = caucasus.Caucasus()
     overview_image = "caumap.gif"
-    reference_points = {(-317948.32727306, 635639.37385346): (278.5 * 4, 319 * 4),
-                        (-355692.3067714, 617269.96285781): (263 * 4, 352 * 4), }
+    reference_points = (
+        ReferencePoint(caucasus.Gelendzhik.position, Point(176, 298)),
+        ReferencePoint(caucasus.Batumi.position, Point(1307, 1205)),
+    )
 
     landmap = load_landmap("resources\\caulandmap.p")
     daytime_map = {
@@ -604,10 +697,10 @@ class CaucasusTheater(ConflictTheater):
 class PersianGulfTheater(ConflictTheater):
     terrain = persiangulf.PersianGulf()
     overview_image = "persiangulf.gif"
-    reference_points = {
-        (persiangulf.Shiraz_International_Airport.position.x, persiangulf.Shiraz_International_Airport.position.y): (
-        772, -1970),
-        (persiangulf.Liwa_Airbase.position.x, persiangulf.Liwa_Airbase.position.y): (1188, 78), }
+    reference_points = (
+        ReferencePoint(persiangulf.Jiroft_Airport.position, Point(1692, 1343)),
+        ReferencePoint(persiangulf.Liwa_Airbase.position, Point(358, 3238)),
+    )
     landmap = load_landmap("resources\\gulflandmap.p")
     daytime_map = {
         "dawn": (6, 8),
@@ -616,11 +709,14 @@ class PersianGulfTheater(ConflictTheater):
         "night": (0, 5),
     }
 
+
 class NevadaTheater(ConflictTheater):
     terrain = nevada.Nevada()
     overview_image = "nevada.gif"
-    reference_points = {(nevada.Mina_Airport_3Q0.position.x, nevada.Mina_Airport_3Q0.position.y): (45 * 2, -360 * 2),
-                        (nevada.Laughlin_Airport.position.x, nevada.Laughlin_Airport.position.y): (440 * 2, 80 * 2), }
+    reference_points = (
+        ReferencePoint(nevada.Mina_Airport_3Q0.position, Point(252, 295)),
+        ReferencePoint(nevada.Laughlin_Airport.position, Point(844, 909)),
+    )
     landmap = load_landmap("resources\\nevlandmap.p")
     daytime_map = {
         "dawn": (4, 6),
@@ -629,11 +725,14 @@ class NevadaTheater(ConflictTheater):
         "night": (0, 5),
     }
 
+
 class NormandyTheater(ConflictTheater):
     terrain = normandy.Normandy()
     overview_image = "normandy.gif"
-    reference_points = {(normandy.Needs_Oar_Point.position.x, normandy.Needs_Oar_Point.position.y): (-170, -1000),
-                        (normandy.Evreux.position.x, normandy.Evreux.position.y): (2020, 500)}
+    reference_points = (
+        ReferencePoint(normandy.Needs_Oar_Point.position, Point(515, 329)),
+        ReferencePoint(normandy.Evreux.position, Point(2029, 1709)),
+    )
     landmap = load_landmap("resources\\normandylandmap.p")
     daytime_map = {
         "dawn": (6, 8),
@@ -642,11 +741,14 @@ class NormandyTheater(ConflictTheater):
         "night": (0, 5),
     }
 
+
 class TheChannelTheater(ConflictTheater):
     terrain = thechannel.TheChannel()
     overview_image = "thechannel.gif"
-    reference_points = {(thechannel.Abbeville_Drucat.position.x, thechannel.Abbeville_Drucat.position.y): (2400, 4100),
-                        (thechannel.Detling.position.x, thechannel.Detling.position.y): (1100, 2000)}
+    reference_points = (
+        ReferencePoint(thechannel.Abbeville_Drucat.position, Point(2005, 2390)),
+        ReferencePoint(thechannel.Detling.position, Point(706, 382)),
+    )
     landmap = load_landmap("resources\\channellandmap.p")
     daytime_map = {
         "dawn": (6, 8),
@@ -655,11 +757,14 @@ class TheChannelTheater(ConflictTheater):
         "night": (0, 5),
     }
 
+
 class SyriaTheater(ConflictTheater):
     terrain = syria.Syria()
     overview_image = "syria.gif"
-    reference_points = {(syria.Eyn_Shemer.position.x, syria.Eyn_Shemer.position.y): (1300, 1380),
-                        (syria.Tabqa.position.x, syria.Tabqa.position.y): (2060, 570)}
+    reference_points = (
+        ReferencePoint(syria.Eyn_Shemer.position, Point(564, 1289)),
+        ReferencePoint(syria.Tabqa.position, Point(1329, 491)),
+    )
     landmap = load_landmap("resources\\syrialandmap.p")
     daytime_map = {
         "dawn": (6, 8),
@@ -667,6 +772,7 @@ class SyriaTheater(ConflictTheater):
         "dusk": (16, 18),
         "night": (0, 5),
     }
+
 
 @dataclass
 class ComplexFrontLine:
@@ -710,7 +816,7 @@ class FrontLine(MissionTarget):
         self,
         control_point_a: ControlPoint,
         control_point_b: ControlPoint,
-        theater: ConflictTheater
+        theater: ConflictTheater,
     ) -> None:
         self.control_point_a = control_point_a
         self.control_point_b = control_point_b
@@ -726,6 +832,7 @@ class FrontLine(MissionTarget):
     def mission_types(self, for_player: bool) -> Iterator[FlightType]:
         yield from [
             FlightType.CAS,
+            FlightType.AEWC,
             # TODO: FlightType.TROOP_TRANSPORT
             # TODO: FlightType.EVAC
         ]
@@ -854,10 +961,9 @@ class FrontLine(MissionTarget):
                 )
             )
 
-
     @staticmethod
     def load_json_frontlines(
-        theater: ConflictTheater
+        theater: ConflictTheater,
     ) -> Optional[Dict[str, ComplexFrontLine]]:
         """Load complex frontlines from json"""
         try:

@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import json
 import os
+import timeit
+from datetime import timedelta
 
 from PySide2 import QtCore
 from PySide2.QtCore import QObject, Qt, Signal
@@ -37,7 +41,7 @@ class DebriefingFileWrittenSignal(QObject):
         self.debriefingReceived.emit(debriefing)
 
     @staticmethod
-    def get_instance():
+    def get_instance() -> DebriefingFileWrittenSignal:
         return DebriefingFileWrittenSignal.instance
 
 
@@ -45,7 +49,6 @@ DebriefingFileWrittenSignal()
 
 
 class QWaitingForMissionResultWindow(QDialog):
-
     def __init__(self, gameEvent: Event, game: Game, unit_map: UnitMap) -> None:
         super(QWaitingForMissionResultWindow, self).__init__()
         self.setModal(True)
@@ -57,10 +60,14 @@ class QWaitingForMissionResultWindow(QDialog):
         self.setMinimumHeight(570)
 
         self.initUi()
-        DebriefingFileWrittenSignal.get_instance().debriefingReceived.connect(self.updateLayout)
+        DebriefingFileWrittenSignal.get_instance().debriefingReceived.connect(
+            self.updateLayout
+        )
         self.wait_thread = wait_for_debriefing(
-            lambda debriefing: self.on_debriefing_update(debriefing), self.game,
-            self.unit_map)
+            lambda debriefing: self.on_debriefing_update(debriefing),
+            self.game,
+            self.unit_map,
+        )
 
     def initUi(self):
         self.layout = QGridLayout()
@@ -85,7 +92,8 @@ class QWaitingForMissionResultWindow(QDialog):
         )
         self.instructions_text = QTextBrowser()
         self.instructions_text.setHtml(
-            jinja.get_template("mission_start_EN.j2").render())
+            jinja.get_template("mission_start_EN.j2").render()
+        )
         self.instructions_text.setOpenExternalLinks(True)
         self.gridLayout.addWidget(self.instructions_text, 1, 0)
 
@@ -105,7 +113,6 @@ class QWaitingForMissionResultWindow(QDialog):
         self.cancel.clicked.connect(self.close)
         self.actions_layout.addWidget(self.cancel)
         self.gridLayout.addWidget(self.actions, 2, 0)
-
 
         self.actions2 = QGroupBox("Actions :")
         self.actions2_layout = QHBoxLayout()
@@ -133,20 +140,24 @@ class QWaitingForMissionResultWindow(QDialog):
 
         updateLayout.addWidget(QLabel("<b>Aircraft destroyed</b>"), 0, 0)
         updateLayout.addWidget(
-            QLabel(str(len(debriefing.air_losses.losses))), 0, 1)
+            QLabel(str(len(list(debriefing.air_losses.losses)))), 0, 1
+        )
 
+        updateLayout.addWidget(QLabel("<b>Front line units destroyed</b>"), 1, 0)
         updateLayout.addWidget(
-            QLabel("<b>Front line units destroyed</b>"), 1, 0)
-        updateLayout.addWidget(
-            QLabel(str(len(debriefing.front_line_losses.losses))), 1, 1)
+            QLabel(str(len(list(debriefing.front_line_losses)))), 1, 1
+        )
 
+        updateLayout.addWidget(QLabel("<b>Other ground units destroyed</b>"), 2, 0)
         updateLayout.addWidget(
-            QLabel("<b>Other ground units destroyed</b>"), 2, 0)
-        updateLayout.addWidget(QLabel(str(len(debriefing.dead_units))), 2, 1)
+            QLabel(str(len(list(debriefing.ground_object_losses)))), 2, 1
+        )
 
-        updateLayout.addWidget(QLabel("<b>Base Capture Events</b>"), 3, 0)
-        updateLayout.addWidget(
-            QLabel(str(len(debriefing.base_capture_events))), 3, 1)
+        updateLayout.addWidget(QLabel("<b>Buildings destroyed</b>"), 3, 0)
+        updateLayout.addWidget(QLabel(str(len(list(debriefing.building_losses)))), 3, 1)
+
+        updateLayout.addWidget(QLabel("<b>Base Capture Events</b>"), 4, 0)
+        updateLayout.addWidget(QLabel(str(len(debriefing.base_capture_events))), 4, 1)
 
         # Clear previous content of the window
         for i in reversed(range(self.gridLayout.count())):
@@ -173,13 +184,18 @@ class QWaitingForMissionResultWindow(QDialog):
         except Exception:
             logging.exception("Got an error while sending debriefing")
         self.wait_thread = wait_for_debriefing(
-            lambda d: self.on_debriefing_update(d), self.game, self.unit_map)
+            lambda d: self.on_debriefing_update(d), self.game, self.unit_map
+        )
 
     def process_debriefing(self):
+        start = timeit.default_timer()
         self.game.finish_event(event=self.gameEvent, debriefing=self.debriefing)
         self.game.pass_turn()
 
-        GameUpdateSignal.get_instance().sendDebriefing(self.game, self.gameEvent, self.debriefing)
+        GameUpdateSignal.get_instance().sendDebriefing(self.debriefing)
+        GameUpdateSignal.get_instance().updateGame(self.game)
+        end = timeit.default_timer()
+        logging.info("Turn processing took %s", timedelta(seconds=end - start))
         self.close()
 
     def debriefing_directory_location(self) -> str:
@@ -191,7 +207,9 @@ class QWaitingForMissionResultWindow(QDialog):
             self.wait_thread.stop()
 
     def submit_manually(self):
-        file = QFileDialog.getOpenFileName(self, "Select game file to open", filter="json(*.json)", dir=".")
+        file = QFileDialog.getOpenFileName(
+            self, "Select game file to open", filter="json(*.json)", dir="."
+        )
         print(file)
         try:
             with open(file[0], "r") as json_file:
@@ -209,4 +227,3 @@ class QWaitingForMissionResultWindow(QDialog):
             msg.setWindowFlags(Qt.WindowStaysOnTopHint)
             msg.exec_()
             return
-

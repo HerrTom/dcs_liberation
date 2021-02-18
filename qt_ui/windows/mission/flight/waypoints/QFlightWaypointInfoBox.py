@@ -4,15 +4,14 @@ from gen.flights.flight import FlightWaypoint
 
 
 class QFlightWaypointInfoBox(QGroupBox):
-
-    def __init__(self, flight_wpt:FlightWaypoint = None):
+    def __init__(self, flight_wpt: FlightWaypoint = None):
         super(QFlightWaypointInfoBox, self).__init__("Waypoint")
         self.flight_wpt = flight_wpt
         if flight_wpt is None:
-            self.flight_wpt = FlightWaypoint(0,0,0)
+            self.flight_wpt = FlightWaypoint(0, 0, 0)
         self.x_position_label = QLabel(str(self.flight_wpt.x))
         self.y_position_label = QLabel(str(self.flight_wpt.y))
-        self.alt_label = QLabel(str(self.flight_wpt.alt))
+        self.alt_label = QLabel(str(int(self.flight_wpt.alt.feet)))
         self.name_label = QLabel(str(self.flight_wpt.name))
         self.desc_label = QLabel(str(self.flight_wpt.description))
         self.init_ui()
@@ -46,7 +45,7 @@ class QFlightWaypointInfoBox(QGroupBox):
         desc_layout.addWidget(self.desc_label)
         desc_layout.addStretch()
 
-        #layout.addLayout(name_layout)
+        # layout.addLayout(name_layout)
         layout.addLayout(x_pos_layout)
         layout.addLayout(y_pos_layout)
         layout.addLayout(alt_layout)
@@ -54,13 +53,13 @@ class QFlightWaypointInfoBox(QGroupBox):
 
         self.setLayout(layout)
 
-    def set_flight_waypoint(self, flight_wpt:FlightWaypoint):
+    def set_flight_waypoint(self, flight_wpt: FlightWaypoint):
         self.flight_wpt = flight_wpt
         if flight_wpt is None:
-            self.flight_wpt = FlightWaypoint(0,0,0)
+            self.flight_wpt = FlightWaypoint(0, 0, 0)
         self.x_position_label.setText(str(self.flight_wpt.x))
         self.y_position_label.setText(str(self.flight_wpt.y))
-        self.alt_label.setText(str(self.flight_wpt.alt))
+        self.alt_label.setText(str(int(self.flight_wpt.alt.feet)))
         self.name_label.setText(str(self.flight_wpt.name))
         self.desc_label.setText(str(self.flight_wpt.description))
         self.setTitle(self.flight_wpt.name)

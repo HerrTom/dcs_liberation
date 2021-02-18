@@ -18,7 +18,10 @@
     "Mi_24V",
     "Mi_28N",
     "Ka_50",
-    "Tu_22M3"
+    "Tu_22M3",
+    "Tu_95MS",
+    "Tu_142",
+    "Tu_160"
   ],
   "awacs": [
     "A_50"
@@ -31,9 +34,11 @@
     "IFV_BMP_2",
     "IFV_BMP_3",
     "APC_BTR_80",
+    "APC_BTR_82A",
     "MBT_T_90",
     "MBT_T_80U",
-    "MBT_T_72B"
+    "MBT_T_72B3",
+    "SAM_SA_19_Tunguska_2S6"
   ],
   "artillery_units": [
     "MLRS_9K57_Uragan_BM_27",
@@ -47,6 +52,7 @@
     "Paratrooper_AKS",
     "Infantry_Soldier_Rus",
     "Paratrooper_RPG_16",
+    "_2B11_mortar",
     "SAM_SA_18_Igla_MANPADS"
   ],
   "air_defenses": [
@@ -85,8 +91,7 @@
     "Admiral Kuznetov"
   ],
   "navy_generators": [
-    "RussianNavyGroupGenerator",
-    "KiloSubGroupGenerator"
+    "RussianNavyGroupGenerator"
   ],
   "has_jtac": true,
   "jtac_unit": "MQ_9_Reaper"

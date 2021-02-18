@@ -10,8 +10,18 @@ from dcs.planes import plane_map
 from dcs.unittype import FlyingType, ShipType, VehicleType, UnitType
 from dcs.vehicles import Armor, Unarmed, Infantry, Artillery, AirDefence
 
-from game.data.building_data import WW2_ALLIES_BUILDINGS, DEFAULT_AVAILABLE_BUILDINGS, WW2_GERMANY_BUILDINGS, WW2_FREE
-from game.data.doctrine import Doctrine, MODERN_DOCTRINE, COLDWAR_DOCTRINE, WWII_DOCTRINE
+from game.data.building_data import (
+    WW2_ALLIES_BUILDINGS,
+    DEFAULT_AVAILABLE_BUILDINGS,
+    WW2_GERMANY_BUILDINGS,
+    WW2_FREE,
+)
+from game.data.doctrine import (
+    Doctrine,
+    MODERN_DOCTRINE,
+    COLDWAR_DOCTRINE,
+    WWII_DOCTRINE,
+)
 from pydcs_extensions.mod_units import MODDED_VEHICLES, MODDED_AIRPLANES
 
 
@@ -31,25 +41,25 @@ class Faction:
     description: str = field(default="")
 
     # Available aircraft
-    aircrafts: List[UnitType] = field(default_factory=list)
+    aircrafts: List[Type[FlyingType]] = field(default_factory=list)
 
     # Available awacs aircraft
-    awacs: List[UnitType] = field(default_factory=list)
+    awacs: List[Type[FlyingType]] = field(default_factory=list)
 
     # Available tanker aircraft
-    tankers: List[UnitType] = field(default_factory=list)
+    tankers: List[Type[FlyingType]] = field(default_factory=list)
 
     # Available frontline units
-    frontline_units: List[VehicleType] = field(default_factory=list)
+    frontline_units: List[Type[VehicleType]] = field(default_factory=list)
 
     # Available artillery units
-    artillery_units: List[VehicleType] = field(default_factory=list)
+    artillery_units: List[Type[VehicleType]] = field(default_factory=list)
 
     # Infantry units used
-    infantry_units: List[VehicleType] = field(default_factory=list)
+    infantry_units: List[Type[VehicleType]] = field(default_factory=list)
 
     # Logistics units used
-    logistics_units: List[VehicleType] = field(default_factory=list)
+    logistics_units: List[Type[VehicleType]] = field(default_factory=list)
 
     # Possible SAMS site generators for this faction
     air_defenses: List[str] = field(default_factory=list)
@@ -60,14 +70,17 @@ class Faction:
     # Possible Missile site generators for this faction
     missiles: List[str] = field(default_factory=list)
 
+    # Possible costal site generators for this faction
+    coastal_defenses: List[str] = field(default_factory=list)
+
     # Required mods or asset packs
     requirements: Dict[str, str] = field(default_factory=dict)
 
     # possible aircraft carrier units
-    aircraft_carrier: List[UnitType] = field(default_factory=list)
+    aircraft_carrier: List[Type[UnitType]] = field(default_factory=list)
 
     # possible helicopter carrier units
-    helicopter_carrier: List[UnitType] = field(default_factory=list)
+    helicopter_carrier: List[Type[UnitType]] = field(default_factory=list)
 
     # Possible carrier names
     carrier_names: List[str] = field(default_factory=list)
@@ -79,10 +92,10 @@ class Faction:
     navy_generators: List[str] = field(default_factory=list)
 
     # Available destroyers
-    destroyers: List[str] = field(default_factory=list)
+    destroyers: List[Type[ShipType]] = field(default_factory=list)
 
     # Available cruisers
-    cruisers: List[str] = field(default_factory=list)
+    cruisers: List[Type[ShipType]] = field(default_factory=list)
 
     # How many navy group should we try to generate per CP on startup for this faction
     navy_group_count: int = field(default=1)
@@ -90,11 +103,14 @@ class Faction:
     # How many missiles group should we try to generate per CP on startup for this faction
     missiles_group_count: int = field(default=1)
 
+    # How many coastal group should we try to generate per CP on startup for this faction
+    coastal_group_count: int = field(default=1)
+
     # Whether this faction has JTAC access
     has_jtac: bool = field(default=False)
 
     # Unit to use as JTAC for this faction
-    jtac_unit: Optional[FlyingType] = field(default=None)
+    jtac_unit: Optional[Type[FlyingType]] = field(default=None)
 
     # doctrine
     doctrine: Doctrine = field(default=MODERN_DOCTRINE)
@@ -103,7 +119,7 @@ class Faction:
     building_set: List[str] = field(default_factory=list)
 
     # List of default livery overrides
-    liveries_overrides: Dict[UnitType, List[str]] = field(default_factory=dict)
+    liveries_overrides: Dict[Type[UnitType], List[str]] = field(default_factory=dict)
 
     #: Set to True if the faction should force the "Unrestricted satnav" option
     #: for the mission. This option enables GPS for capable aircraft regardless
@@ -121,7 +137,11 @@ class Faction:
 
         faction.country = json.get("country", "/")
         if faction.country not in [c.name for c in country_dict.values()]:
-            raise AssertionError("Faction's country (\"{}\") is not a valid DCS country ID".format(faction.country))
+            raise AssertionError(
+                'Faction\'s country ("{}") is not a valid DCS country ID'.format(
+                    faction.country
+                )
+            )
 
         faction.name = json.get("name", "")
         if not faction.name:
@@ -134,14 +154,10 @@ class Faction:
         faction.awacs = load_all_aircraft(json.get("awacs", []))
         faction.tankers = load_all_aircraft(json.get("tankers", []))
 
-        faction.frontline_units = load_all_vehicles(
-            json.get("frontline_units", []))
-        faction.artillery_units = load_all_vehicles(
-            json.get("artillery_units", []))
-        faction.infantry_units = load_all_vehicles(
-            json.get("infantry_units", []))
-        faction.logistics_units = load_all_vehicles(
-            json.get("logistics_units", []))
+        faction.frontline_units = load_all_vehicles(json.get("frontline_units", []))
+        faction.artillery_units = load_all_vehicles(json.get("artillery_units", []))
+        faction.infantry_units = load_all_vehicles(json.get("infantry_units", []))
+        faction.logistics_units = load_all_vehicles(json.get("logistics_units", []))
 
         faction.ewrs = json.get("ewrs", [])
 
@@ -152,16 +168,14 @@ class Faction:
         faction.air_defenses.extend(json.get("shorads", []))
 
         faction.missiles = json.get("missiles", [])
+        faction.coastal_defenses = json.get("coastal_defenses", [])
         faction.requirements = json.get("requirements", {})
 
         faction.carrier_names = json.get("carrier_names", [])
-        faction.helicopter_carrier_names = json.get(
-            "helicopter_carrier_names", [])
+        faction.helicopter_carrier_names = json.get("helicopter_carrier_names", [])
         faction.navy_generators = json.get("navy_generators", [])
-        faction.aircraft_carrier = load_all_ships(
-            json.get("aircraft_carrier", []))
-        faction.helicopter_carrier = load_all_ships(
-            json.get("helicopter_carrier", []))
+        faction.aircraft_carrier = load_all_ships(json.get("aircraft_carrier", []))
+        faction.helicopter_carrier = load_all_ships(json.get("helicopter_carrier", []))
         faction.destroyers = load_all_ships(json.get("destroyers", []))
         faction.cruisers = load_all_ships(json.get("cruisers", []))
         faction.has_jtac = json.get("has_jtac", False)
@@ -172,6 +186,7 @@ class Faction:
             faction.jtac_unit = None
         faction.navy_group_count = int(json.get("navy_group_count", 1))
         faction.missiles_group_count = int(json.get("missiles_group_count", 0))
+        faction.coastal_group_count = int(json.get("coastal_group_count", 0))
 
         # Load doctrine
         doctrine = json.get("doctrine", "modern")
@@ -210,13 +225,19 @@ class Faction:
         return faction
 
     @property
-    def units(self) -> List[UnitType]:
-        return (self.infantry_units + self.aircrafts + self.awacs +
-                self.artillery_units + self.frontline_units +
-                self.tankers + self.logistics_units)
+    def units(self) -> List[Type[UnitType]]:
+        return (
+            self.infantry_units
+            + self.aircrafts
+            + self.awacs
+            + self.artillery_units
+            + self.frontline_units
+            + self.tankers
+            + self.logistics_units
+        )
 
 
-def unit_loader(unit: str, class_repository: List[Any]) -> Optional[UnitType]:
+def unit_loader(unit: str, class_repository: List[Any]) -> Optional[Type[UnitType]]:
     """
     Find unit by name
     :param unit: Unit name as string
@@ -239,13 +260,14 @@ def unit_loader(unit: str, class_repository: List[Any]) -> Optional[UnitType]:
         return None
 
 
-def load_aircraft(name: str) -> Optional[FlyingType]:
-    return cast(Optional[FlyingType], unit_loader(
-        name, [dcs.planes, dcs.helicopters, MODDED_AIRPLANES]
-    ))
+def load_aircraft(name: str) -> Optional[Type[FlyingType]]:
+    return cast(
+        Optional[FlyingType],
+        unit_loader(name, [dcs.planes, dcs.helicopters, MODDED_AIRPLANES]),
+    )
 
 
-def load_all_aircraft(data) -> List[FlyingType]:
+def load_all_aircraft(data) -> List[Type[FlyingType]]:
     items = []
     for name in data:
         item = load_aircraft(name)
@@ -254,13 +276,16 @@ def load_all_aircraft(data) -> List[FlyingType]:
     return items
 
 
-def load_vehicle(name: str) -> Optional[VehicleType]:
-    return cast(Optional[FlyingType], unit_loader(
-        name, [Infantry, Unarmed, Armor, AirDefence, Artillery, MODDED_VEHICLES]
-    ))
+def load_vehicle(name: str) -> Optional[Type[VehicleType]]:
+    return cast(
+        Optional[FlyingType],
+        unit_loader(
+            name, [Infantry, Unarmed, Armor, AirDefence, Artillery, MODDED_VEHICLES]
+        ),
+    )
 
 
-def load_all_vehicles(data) -> List[VehicleType]:
+def load_all_vehicles(data) -> List[Type[VehicleType]]:
     items = []
     for name in data:
         item = load_vehicle(name)
@@ -269,11 +294,11 @@ def load_all_vehicles(data) -> List[VehicleType]:
     return items
 
 
-def load_ship(name: str) -> Optional[ShipType]:
+def load_ship(name: str) -> Optional[Type[ShipType]]:
     return cast(Optional[FlyingType], unit_loader(name, [dcs.ships]))
 
 
-def load_all_ships(data) -> List[ShipType]:
+def load_all_ships(data) -> List[Type[ShipType]]:
     items = []
     for name in data:
         item = load_ship(name)

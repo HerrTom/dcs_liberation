@@ -1,20 +1,23 @@
 import logging
 
 from PySide2.QtCore import Signal
-from PySide2.QtWidgets import QLabel, QHBoxLayout, QGroupBox, QSpinBox, QGridLayout
+from PySide2.QtWidgets import QLabel, QGroupBox, QSpinBox, QGridLayout
+
+from game import Game
+from gen.flights.flight import Flight
+from qt_ui.models import PackageModel
 
 
 class QFlightSlotEditor(QGroupBox):
 
     changed = Signal()
 
-    def __init__(self, flight, game):
-        super(QFlightSlotEditor, self).__init__("Slots")
+    def __init__(self, package_model: PackageModel, flight: Flight, game: Game):
+        super().__init__("Slots")
+        self.package_model = package_model
         self.flight = flight
         self.game = game
-        self.inventory = self.game.aircraft_inventory.for_control_point(
-            flight.from_cp
-        )
+        self.inventory = self.game.aircraft_inventory.for_control_point(flight.from_cp)
         available = self.inventory.available(self.flight.unit_type)
         max_count = self.flight.count + available
         if max_count > 4:
@@ -22,14 +25,14 @@ class QFlightSlotEditor(QGroupBox):
 
         layout = QGridLayout()
 
-        self.aircraft_count = QLabel("Aircraft count :")
+        self.aircraft_count = QLabel("Aircraft count:")
         self.aircraft_count_spinner = QSpinBox()
         self.aircraft_count_spinner.setMinimum(1)
         self.aircraft_count_spinner.setMaximum(max_count)
         self.aircraft_count_spinner.setValue(flight.count)
         self.aircraft_count_spinner.valueChanged.connect(self._changed_aircraft_count)
 
-        self.client_count = QLabel("Client slots count :")
+        self.client_count = QLabel("Client slots count:")
         self.client_count_spinner = QSpinBox()
         self.client_count_spinner.setMinimum(0)
         self.client_count_spinner.setMaximum(max_count)
@@ -62,7 +65,8 @@ class QFlightSlotEditor(QGroupBox):
             logging.error(
                 f"Could not add {difference} additional aircraft to "
                 f"{self.flight} because {self.flight.from_cp} has only "
-                f"{available} {self.flight.unit_type} remaining")
+                f"{available} {self.flight.unit_type} remaining"
+            )
             self.flight.count = old_count
             self.game.aircraft_inventory.claim_for_flight(self.flight)
         self.changed.emit()
@@ -70,6 +74,7 @@ class QFlightSlotEditor(QGroupBox):
     def _changed_client_count(self):
         self.flight.client_count = int(self.client_count_spinner.value())
         self._cap_client_count()
+        self.package_model.update_tot()
         self.changed.emit()
 
     def _cap_client_count(self):

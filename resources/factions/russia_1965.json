@@ -7,7 +7,8 @@
     "MiG_15bis",
     "MiG_19P",
     "MiG_21Bis",
-    "Mi_8MT"
+    "Mi_8MT",
+    "Tu_95MS"
   ],
   "awacs": [
     "A_50"
@@ -21,7 +22,9 @@
     "ARV_BTR_RD",
     "IFV_BMD_1",
     "IFV_BMP_1",
-    "MBT_T_55"
+    "MBT_T_55",
+    "AAA_ZU_23_on_Ural_375",
+    "AAA_ZSU_57_2"
   ],
   "artillery_units": [
     "MLRS_BM_21_Grad"
@@ -39,6 +42,7 @@
     "SA2Generator",
     "SA3Generator",
     "ZSU23Generator",
+    "ZSU57Generator",
     "ZU23Generator",
     "ZU23UralGenerator"
   ],

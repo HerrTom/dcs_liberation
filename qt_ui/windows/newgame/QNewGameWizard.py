@@ -5,17 +5,18 @@ from typing import List, Optional
 
 from PySide2 import QtGui, QtWidgets
 from PySide2.QtCore import QItemSelectionModel, QPoint, Qt
-from PySide2.QtWidgets import QVBoxLayout, QTextEdit
+from PySide2.QtWidgets import QVBoxLayout, QTextEdit, QLabel
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from game import db
 from game.settings import Settings
+from game.theater.start_generator import GameGenerator, GeneratorSettings
+from qt_ui.widgets.spinsliders import TenthsSpinSlider
 from qt_ui.windows.newgame.QCampaignList import (
     Campaign,
     QCampaignList,
     load_campaigns,
 )
-from game.theater.start_generator import GameGenerator
 
 jinja_env = Environment(
     loader=FileSystemLoader("resources/ui/templates"),
@@ -28,20 +29,28 @@ jinja_env = Environment(
     lstrip_blocks=True,
 )
 
+
+DEFAULT_BUDGET = 2000
+
+
 class NewGameWizard(QtWidgets.QWizard):
     def __init__(self, parent=None):
         super(NewGameWizard, self).__init__(parent)
 
         self.campaigns = load_campaigns()
 
+        self.faction_selection_page = FactionSelection()
         self.addPage(IntroPage())
-        self.addPage(FactionSelection())
-        self.addPage(TheaterConfiguration(self.campaigns))
-        self.addPage(MiscOptions())
+        self.addPage(TheaterConfiguration(self.campaigns, self.faction_selection_page))
+        self.addPage(self.faction_selection_page)
+        self.addPage(GeneratorOptions())
+        self.addPage(DifficultyAndAutomationOptions())
         self.addPage(ConclusionPage())
 
-        self.setPixmap(QtWidgets.QWizard.WatermarkPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/watermark1.png'))
+        self.setPixmap(
+            QtWidgets.QWizard.WatermarkPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/watermark1.png"),
+        )
         self.setWizardStyle(QtWidgets.QWizard.ModernStyle)
 
         self.setWindowTitle("New Game")
@@ -51,43 +60,45 @@ class NewGameWizard(QtWidgets.QWizard):
         logging.info("New Game Wizard accept")
         logging.info("======================")
 
-        blueFaction = [c for c in db.FACTIONS][self.field("blueFaction")]
-        redFaction = [c for c in db.FACTIONS][self.field("redFaction")]
-
-        selectedCampaign = self.field("selectedCampaign")
-        if selectedCampaign is None:
-            selectedCampaign = self.campaigns[0]
-
-        conflictTheater = selectedCampaign.load_theater()
-
-        timePeriod = db.TIME_PERIODS[list(db.TIME_PERIODS.keys())[self.field("timePeriod")]]
-        midGame = self.field("midGame")
-        # QSlider forces integers, so we use 1 to 50 and divide by 10 to give
-        # 0.1 to 5.0.
-        multiplier = self.field("multiplier") / 10
-        no_carrier = self.field("no_carrier")
-        no_lha = self.field("no_lha")
-        supercarrier = self.field("supercarrier")
-        no_player_navy = self.field("no_player_navy")
-        no_enemy_navy = self.field("no_enemy_navy")
-        invertMap = self.field("invertMap")
-        starting_money = int(self.field("starting_money"))
-
-        player_name = blueFaction
-        enemy_name = redFaction
+        campaign = self.field("selectedCampaign")
+        if campaign is None:
+            campaign = self.campaigns[0]
 
         settings = Settings(
-            inverted=invertMap,
-            supercarrier=supercarrier,
-            do_not_generate_carrier=no_carrier,
-            do_not_generate_lha=no_lha,
-            do_not_generate_player_navy=no_player_navy,
-            do_not_generate_enemy_navy=no_enemy_navy
+            player_income_multiplier=self.field("player_income_multiplier") / 10,
+            enemy_income_multiplier=self.field("enemy_income_multiplier") / 10,
+            automate_runway_repair=self.field("automate_runway_repairs"),
+            automate_front_line_reinforcements=self.field(
+                "automate_front_line_purchases"
+            ),
+            automate_aircraft_reinforcements=self.field("automate_aircraft_purchases"),
+            supercarrier=self.field("supercarrier"),
+        )
+        generator_settings = GeneratorSettings(
+            start_date=db.TIME_PERIODS[
+                list(db.TIME_PERIODS.keys())[self.field("timePeriod")]
+            ],
+            player_budget=int(self.field("starting_money")),
+            enemy_budget=int(self.field("enemy_starting_money")),
+            # QSlider forces integers, so we use 1 to 50 and divide by 10 to
+            # give 0.1 to 5.0.
+            midgame=False,
+            inverted=self.field("invertMap"),
+            no_carrier=self.field("no_carrier"),
+            no_lha=self.field("no_lha"),
+            no_player_navy=self.field("no_player_navy"),
+            no_enemy_navy=self.field("no_enemy_navy"),
         )
 
-        generator = GameGenerator(player_name, enemy_name, conflictTheater,
-                                  settings, timePeriod, starting_money,
-                                  multiplier, midGame)
+        blue_faction = [c for c in db.FACTIONS][self.field("blueFaction")]
+        red_faction = [c for c in db.FACTIONS][self.field("redFaction")]
+        generator = GameGenerator(
+            blue_faction,
+            red_faction,
+            campaign.load_theater(),
+            settings,
+            generator_settings,
+        )
         self.generatedGame = generator.generate()
 
         super(NewGameWizard, self).accept()
@@ -98,11 +109,15 @@ class IntroPage(QtWidgets.QWizardPage):
         super(IntroPage, self).__init__(parent)
 
         self.setTitle("Introduction")
-        self.setPixmap(QtWidgets.QWizard.WatermarkPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/watermark1.png'))
+        self.setPixmap(
+            QtWidgets.QWizard.WatermarkPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/watermark1.png"),
+        )
 
-        label = QtWidgets.QLabel("This wizard will help you setup a new game.\n\n"
-                                 "Please make sure you saved and backed up your previous game before going through.")
+        label = QtWidgets.QLabel(
+            "This wizard will help you setup a new game.\n\n"
+            "Please make sure you saved and backed up your previous game before going through."
+        )
         label.setWordWrap(True)
 
         layout = QtWidgets.QVBoxLayout()
@@ -115,9 +130,13 @@ class FactionSelection(QtWidgets.QWizardPage):
         super(FactionSelection, self).__init__(parent)
 
         self.setTitle("Faction selection")
-        self.setSubTitle("\nChoose the two opposing factions and select the player side.")
-        self.setPixmap(QtWidgets.QWizard.LogoPixmap,
-                       QtGui.QPixmap('./resources/ui/misc/generator.png'))
+        self.setSubTitle(
+            "\nChoose the two opposing factions and select the player side."
+        )
+        self.setPixmap(
+            QtWidgets.QWizard.LogoPixmap,
+            QtGui.QPixmap("./resources/ui/misc/generator.png"),
+        )
 
         self.setMinimumHeight(250)
 
@@ -168,22 +187,49 @@ class FactionSelection(QtWidgets.QWizardPage):
         self.requiredModsGroup = QtWidgets.QGroupBox("Required Mods")
         self.requiredModsGroupLayout = QtWidgets.QHBoxLayout()
         self.requiredMods = QtWidgets.QLabel("<ul><li>None</li></ul>")
+        self.requiredMods.setOpenExternalLinks(True)
         self.requiredModsGroupLayout.addWidget(self.requiredMods)
         self.requiredModsGroup.setLayout(self.requiredModsGroupLayout)
 
+        # Docs Link
+        docsText = QtWidgets.QLabel(
+            '<a href="https://github.com/Khopa/dcs_liberation/wiki/Custom-Factions"><span style="color:#FFFFFF;">How to create your own faction</span></a>'
+        )
+        docsText.setAlignment(Qt.AlignCenter)
+        docsText.setOpenExternalLinks(True)
+
         # Link form fields
-        self.registerField('blueFaction', self.blueFactionSelect)
-        self.registerField('redFaction', self.redFactionSelect)
+        self.registerField("blueFaction", self.blueFactionSelect)
+        self.registerField("redFaction", self.redFactionSelect)
 
         # Build layout
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.factionsGroup)
         layout.addWidget(self.requiredModsGroup)
+        layout.addWidget(docsText)
         self.setLayout(layout)
         self.updateUnitRecap()
 
         self.blueFactionSelect.activated.connect(self.updateUnitRecap)
         self.redFactionSelect.activated.connect(self.updateUnitRecap)
+
+    def setDefaultFactions(self, campaign: Campaign):
+        """ Set default faction for selected campaign """
+
+        self.blueFactionSelect.clear()
+        self.redFactionSelect.clear()
+
+        for f in db.FACTIONS:
+            self.blueFactionSelect.addItem(f)
+
+        for i, r in enumerate(db.FACTIONS):
+            self.redFactionSelect.addItem(r)
+            if r == campaign.recommended_enemy_faction:
+                self.redFactionSelect.setCurrentIndex(i)
+            if r == campaign.recommended_player_faction:
+                self.blueFactionSelect.setCurrentIndex(i)
+
+        self.updateUnitRecap()
 
     def updateUnitRecap(self):
 
@@ -205,16 +251,30 @@ class FactionSelection(QtWidgets.QWizardPage):
             has_mod = True
             for mod in red_faction.requirements.keys():
                 self.requiredMods.setText(
-                    self.requiredMods.text() + "\n<li>" + mod + ": <a href=\"" + red_faction.requirements[mod] + "\">" +
-                    red_faction.requirements[mod] + "</a></li>")
+                    self.requiredMods.text()
+                    + "\n<li>"
+                    + mod
+                    + ': <a href="'
+                    + red_faction.requirements[mod]
+                    + '">'
+                    + red_faction.requirements[mod]
+                    + "</a></li>"
+                )
 
         if len(blue_faction.requirements.keys()) > 0:
             has_mod = True
             for mod in blue_faction.requirements.keys():
                 if mod not in red_faction.requirements.keys():
                     self.requiredMods.setText(
-                        self.requiredMods.text() + "\n<li>" + mod + ": <a href=\"" + blue_faction.requirements[
-                            mod] + "\">" + blue_faction.requirements[mod] + "</a></li>")
+                        self.requiredMods.text()
+                        + "\n<li>"
+                        + mod
+                        + ': <a href="'
+                        + blue_faction.requirements[mod]
+                        + '">'
+                        + blue_faction.requirements[mod]
+                        + "</a></li>"
+                    )
 
         if has_mod:
             self.requiredMods.setText(self.requiredMods.text() + "</ul>\n\n")
@@ -223,16 +283,27 @@ class FactionSelection(QtWidgets.QWizardPage):
 
 
 class TheaterConfiguration(QtWidgets.QWizardPage):
-    def __init__(self, campaigns: List[Campaign], parent=None) -> None:
+    def __init__(
+        self,
+        campaigns: List[Campaign],
+        faction_selection: FactionSelection,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
+
+        self.faction_selection = faction_selection
 
         self.setTitle("Theater configuration")
         self.setSubTitle("\nChoose a terrain and time period for this game.")
-        self.setPixmap(QtWidgets.QWizard.LogoPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/logo1.png'))
+        self.setPixmap(
+            QtWidgets.QWizard.LogoPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/logo1.png"),
+        )
 
-        self.setPixmap(QtWidgets.QWizard.WatermarkPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/watermark3.png'))
+        self.setPixmap(
+            QtWidgets.QWizard.WatermarkPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/watermark3.png"),
+        )
 
         # List of campaigns
         campaignList = QCampaignList(campaigns)
@@ -241,25 +312,39 @@ class TheaterConfiguration(QtWidgets.QWizardPage):
         # Faction description
         self.campaignMapDescription = QTextEdit("")
         self.campaignMapDescription.setReadOnly(True)
+        self.campaignMapDescription.setMaximumHeight(150)
+
+        self.performanceText = QTextEdit("")
+        self.performanceText.setReadOnly(True)
+        self.performanceText.setMaximumHeight(150)
 
         def on_campaign_selected():
             template = jinja_env.get_template("campaigntemplate_EN.j2")
+            template_perf = jinja_env.get_template(
+                "campaign_performance_template_EN.j2"
+            )
             index = campaignList.selectionModel().currentIndex().row()
             campaign = campaignList.campaigns[index]
             self.setField("selectedCampaign", campaign)
             self.campaignMapDescription.setText(template.render({"campaign": campaign}))
+            self.faction_selection.setDefaultFactions(campaign)
+            self.performanceText.setText(
+                template_perf.render({"performance": campaign.performance})
+            )
 
-        campaignList.selectionModel().setCurrentIndex(campaignList.indexAt(QPoint(1, 1)), QItemSelectionModel.Rows)
+        campaignList.selectionModel().setCurrentIndex(
+            campaignList.indexAt(QPoint(1, 1)), QItemSelectionModel.Rows
+        )
         campaignList.selectionModel().selectionChanged.connect(on_campaign_selected)
         on_campaign_selected()
 
         # Campaign settings
         mapSettingsGroup = QtWidgets.QGroupBox("Map Settings")
         invertMap = QtWidgets.QCheckBox()
-        self.registerField('invertMap', invertMap)
+        self.registerField("invertMap", invertMap)
         mapSettingsLayout = QtWidgets.QGridLayout()
-        mapSettingsLayout.addWidget(QtWidgets.QLabel("Invert Map"), 1, 0)
-        mapSettingsLayout.addWidget(invertMap, 1, 1)
+        mapSettingsLayout.addWidget(QtWidgets.QLabel("Invert Map"), 0, 0)
+        mapSettingsLayout.addWidget(invertMap, 0, 1)
         mapSettingsGroup.setLayout(mapSettingsLayout)
 
         # Time Period
@@ -271,9 +356,15 @@ class TheaterConfiguration(QtWidgets.QWizardPage):
         timePeriod.setBuddy(timePeriodSelect)
         timePeriodSelect.setCurrentIndex(21)
 
+        # Docs Link
+        docsText = QtWidgets.QLabel(
+            '<a href="https://github.com/Khopa/dcs_liberation/wiki/Custom-Campaigns"><span style="color:#FFFFFF;">How to create your own theater</span></a>'
+        )
+        docsText.setAlignment(Qt.AlignCenter)
+        docsText.setOpenExternalLinks(True)
+
         # Register fields
-        self.registerField('timePeriod', timePeriodSelect)
-        self.registerField('timePeriod', timePeriodSelect)
+        self.registerField("timePeriod", timePeriodSelect)
 
         timeGroupLayout = QtWidgets.QGridLayout()
         timeGroupLayout.addWidget(timePeriod, 0, 0)
@@ -282,17 +373,22 @@ class TheaterConfiguration(QtWidgets.QWizardPage):
 
         layout = QtWidgets.QGridLayout()
         layout.setColumnMinimumWidth(0, 20)
-        layout.addWidget(campaignList, 0, 0, 3, 1)
+        layout.addWidget(campaignList, 0, 0, 5, 1)
+        layout.addWidget(docsText, 5, 0, 1, 1)
         layout.addWidget(self.campaignMapDescription, 0, 1, 1, 1)
-        layout.addWidget(mapSettingsGroup, 1, 1, 1, 1)
-        layout.addWidget(timeGroup, 2, 1, 1, 1)
+        layout.addWidget(self.performanceText, 1, 1, 1, 1)
+        layout.addWidget(mapSettingsGroup, 2, 1, 1, 1)
+        layout.addWidget(timeGroup, 3, 1, 3, 1)
         self.setLayout(layout)
 
 
 class CurrencySpinner(QtWidgets.QSpinBox):
-    def __init__(self, minimum: Optional[int] = None,
-                 maximum: Optional[int] = None,
-                 initial: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        minimum: Optional[int] = None,
+        maximum: Optional[int] = None,
+        initial: Optional[int] = None,
+    ) -> None:
         super().__init__()
 
         if minimum is not None:
@@ -307,13 +403,13 @@ class CurrencySpinner(QtWidgets.QSpinBox):
 
 
 class BudgetInputs(QtWidgets.QGridLayout):
-    def __init__(self) -> None:
+    def __init__(self, label: str) -> None:
         super().__init__()
-        self.addWidget(QtWidgets.QLabel("Starting money"), 0, 0)
+        self.addWidget(QtWidgets.QLabel(label), 0, 0)
 
         minimum = 0
         maximum = 5000
-        initial = 650
+        initial = DEFAULT_BUDGET
 
         slider = QtWidgets.QSlider(Qt.Horizontal)
         slider.setMinimum(minimum)
@@ -327,79 +423,87 @@ class BudgetInputs(QtWidgets.QGridLayout):
         self.addWidget(self.starting_money, 1, 1)
 
 
-class ForceMultiplierSpinner(QtWidgets.QSpinBox):
-    def __init__(self, minimum: Optional[int] = None,
-                 maximum: Optional[int] = None,
-                 initial: Optional[int] = None) -> None:
-        super().__init__()
+class DifficultyAndAutomationOptions(QtWidgets.QWizardPage):
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
 
-        if minimum is not None:
-            self.setMinimum(minimum)
-        if maximum is not None:
-            self.setMaximum(maximum)
-        if initial is not None:
-            self.setValue(initial)
+        self.setTitle("Difficulty and automation options")
+        self.setSubTitle(
+            "\nOptions controlling game difficulty and level of " "player involvement."
+        )
+        self.setPixmap(
+            QtWidgets.QWizard.LogoPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/logo1.png"),
+        )
 
-    def textFromValue(self, val: int) -> str:
-        return f"X {val / 10:.1f}"
+        layout = QtWidgets.QVBoxLayout()
+
+        economy_group = QtWidgets.QGroupBox("Economy options")
+        layout.addWidget(economy_group)
+        economy_layout = QtWidgets.QVBoxLayout()
+        economy_group.setLayout(economy_layout)
+
+        player_income = TenthsSpinSlider("Player income multiplier", 1, 50, 10)
+        self.registerField("player_income_multiplier", player_income.spinner)
+        economy_layout.addLayout(player_income)
+
+        enemy_income = TenthsSpinSlider("Enemy income multiplier", 1, 50, 10)
+        self.registerField("enemy_income_multiplier", enemy_income.spinner)
+        economy_layout.addLayout(enemy_income)
+
+        player_budget = BudgetInputs("Player starting budget")
+        self.registerField("starting_money", player_budget.starting_money)
+        economy_layout.addLayout(player_budget)
+
+        enemy_budget = BudgetInputs("Enemy starting budget")
+        self.registerField("enemy_starting_money", enemy_budget.starting_money)
+        economy_layout.addLayout(enemy_budget)
+
+        assist_group = QtWidgets.QGroupBox("Player assists")
+        layout.addWidget(assist_group)
+        assist_layout = QtWidgets.QGridLayout()
+        assist_group.setLayout(assist_layout)
+
+        assist_layout.addWidget(QtWidgets.QLabel("Automate runway repairs"), 0, 0)
+        runway_repairs = QtWidgets.QCheckBox()
+        self.registerField("automate_runway_repairs", runway_repairs)
+        assist_layout.addWidget(runway_repairs, 0, 1, Qt.AlignRight)
+
+        assist_layout.addWidget(QtWidgets.QLabel("Automate front-line purchases"), 1, 0)
+        front_line = QtWidgets.QCheckBox()
+        self.registerField("automate_front_line_purchases", front_line)
+        assist_layout.addWidget(front_line, 1, 1, Qt.AlignRight)
+
+        assist_layout.addWidget(QtWidgets.QLabel("Automate aircraft purchases"), 2, 0)
+        aircraft = QtWidgets.QCheckBox()
+        self.registerField("automate_aircraft_purchases", aircraft)
+        assist_layout.addWidget(aircraft, 2, 1, Qt.AlignRight)
+
+        self.setLayout(layout)
 
 
-class ForceMultiplierInputs(QtWidgets.QGridLayout):
-    def __init__(self) -> None:
-        super().__init__()
-        self.addWidget(QtWidgets.QLabel("Enemy forces multiplier"), 0, 0)
-
-        minimum = 1
-        maximum = 50
-        initial = 10
-
-        slider = QtWidgets.QSlider(Qt.Horizontal)
-        slider.setMinimum(minimum)
-        slider.setMaximum(maximum)
-        slider.setValue(initial)
-        self.multiplier = ForceMultiplierSpinner(minimum, maximum, initial)
-        slider.valueChanged.connect(lambda x: self.multiplier.setValue(x))
-        self.multiplier.valueChanged.connect(lambda x: slider.setValue(x))
-
-        self.addWidget(slider, 1, 0)
-        self.addWidget(self.multiplier, 1, 1)
-
-
-class MiscOptions(QtWidgets.QWizardPage):
+class GeneratorOptions(QtWidgets.QWizardPage):
     def __init__(self, parent=None):
-        super(MiscOptions, self).__init__(parent)
-
-        self.setTitle("Miscellaneous settings")
-        self.setSubTitle("\nOthers settings for the game.")
-        self.setPixmap(QtWidgets.QWizard.LogoPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/logo1.png'))
-
-        midGame = QtWidgets.QCheckBox()
-        multiplier_inputs = ForceMultiplierInputs()
-        self.registerField('multiplier', multiplier_inputs.multiplier)
-
-
-        miscSettingsGroup = QtWidgets.QGroupBox("Misc Settings")
-        self.registerField('midGame', midGame)
+        super().__init__(parent)
+        self.setTitle("Generator settings")
+        self.setSubTitle("\nOptions affecting the generation of the game.")
+        self.setPixmap(
+            QtWidgets.QWizard.LogoPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/logo1.png"),
+        )
 
         # Campaign settings
         generatorSettingsGroup = QtWidgets.QGroupBox("Generator Settings")
         no_carrier = QtWidgets.QCheckBox()
-        self.registerField('no_carrier', no_carrier)
+        self.registerField("no_carrier", no_carrier)
         no_lha = QtWidgets.QCheckBox()
-        self.registerField('no_lha', no_lha)
+        self.registerField("no_lha", no_lha)
         supercarrier = QtWidgets.QCheckBox()
-        self.registerField('supercarrier', supercarrier)
+        self.registerField("supercarrier", supercarrier)
         no_player_navy = QtWidgets.QCheckBox()
-        self.registerField('no_player_navy', no_player_navy)
+        self.registerField("no_player_navy", no_player_navy)
         no_enemy_navy = QtWidgets.QCheckBox()
-        self.registerField('no_enemy_navy', no_enemy_navy)
-
-        layout = QtWidgets.QGridLayout()
-        layout.addWidget(QtWidgets.QLabel("Start at mid game"), 1, 0)
-        layout.addWidget(midGame, 1, 1)
-        layout.addLayout(multiplier_inputs, 2, 0)
-        miscSettingsGroup.setLayout(layout)
+        self.registerField("no_enemy_navy", no_enemy_navy)
 
         generatorLayout = QtWidgets.QGridLayout()
         generatorLayout.addWidget(QtWidgets.QLabel("No Aircraft Carriers"), 1, 0)
@@ -414,15 +518,8 @@ class MiscOptions(QtWidgets.QWizardPage):
         generatorLayout.addWidget(no_enemy_navy, 5, 1)
         generatorSettingsGroup.setLayout(generatorLayout)
 
-        budget_inputs = BudgetInputs()
-        economySettingsGroup = QtWidgets.QGroupBox("Economy")
-        economySettingsGroup.setLayout(budget_inputs)
-        self.registerField('starting_money', budget_inputs.starting_money)
-
         mlayout = QVBoxLayout()
-        mlayout.addWidget(miscSettingsGroup)
         mlayout.addWidget(generatorSettingsGroup)
-        mlayout.addWidget(economySettingsGroup)
         self.setLayout(mlayout)
 
 
@@ -432,10 +529,14 @@ class ConclusionPage(QtWidgets.QWizardPage):
 
         self.setTitle("Conclusion")
         self.setSubTitle("\n\n")
-        self.setPixmap(QtWidgets.QWizard.WatermarkPixmap,
-                       QtGui.QPixmap('./resources/ui/wizard/watermark2.png'))
+        self.setPixmap(
+            QtWidgets.QWizard.WatermarkPixmap,
+            QtGui.QPixmap("./resources/ui/wizard/watermark2.png"),
+        )
 
-        self.label = QtWidgets.QLabel("Click 'Finish' to generate and start the new game.")
+        self.label = QtWidgets.QLabel(
+            "Click 'Finish' to generate and start the new game."
+        )
         self.label.setWordWrap(True)
 
         layout = QtWidgets.QVBoxLayout()

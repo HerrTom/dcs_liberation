@@ -9,17 +9,28 @@ from game import Game
 from game.data.building_data import FORTIFICATION_BUILDINGS
 from game.db import REWARDS
 from game.theater import ControlPoint, TheaterGroundObject
-from game.theater.theatergroundobject import MissileSiteGroundObject
+from game.theater.theatergroundobject import (
+    MissileSiteGroundObject,
+    CoastalSiteGroundObject,
+)
 from qt_ui.windows.groundobject.QGroundObjectMenu import QGroundObjectMenu
 from .QMapObject import QMapObject
 from ...displayoptions import DisplayOptions
 
 
 class QMapGroundObject(QMapObject):
-    def __init__(self, parent, x: float, y: float, w: float, h: float,
-                 control_point: ControlPoint,
-                 ground_object: TheaterGroundObject, game: Game,
-                 buildings: Optional[List[TheaterGroundObject]] = None) -> None:
+    def __init__(
+        self,
+        parent,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        control_point: ControlPoint,
+        ground_object: TheaterGroundObject,
+        game: Game,
+        buildings: Optional[List[TheaterGroundObject]] = None,
+    ) -> None:
         super().__init__(x, y, w, h, mission_target=ground_object)
         self.ground_object = ground_object
         self.control_point = control_point
@@ -42,7 +53,7 @@ class QMapGroundObject(QMapObject):
             for g in self.ground_object.groups:
                 for u in g.units:
                     if u.type in units:
-                        units[u.type] = units[u.type]+1
+                        units[u.type] = units[u.type] + 1
                     else:
                         units[u.type] = 1
 
@@ -58,9 +69,11 @@ class QMapGroundObject(QMapObject):
     @property
     def production_per_turn(self) -> int:
         production = 0
-        for g in self.control_point.ground_objects:
-            if g.category in REWARDS.keys():
-                production += REWARDS[g.category]
+        for building in self.buildings:
+            if building.is_dead:
+                continue
+            if building.category in REWARDS.keys():
+                production += REWARDS[building.category]
         return production
 
     def paint(self, painter, option, widget=None) -> None:
@@ -75,9 +88,15 @@ class QMapGroundObject(QMapObject):
                 cat = "ship"
             if isinstance(self.ground_object, MissileSiteGroundObject):
                 cat = "missile"
+            if isinstance(self.ground_object, CoastalSiteGroundObject):
+                cat = "coastal"
 
-            rect = QRect(option.rect.x() + 2, option.rect.y(),
-                         option.rect.width() - 2, option.rect.height())
+            rect = QRect(
+                option.rect.x() + 2,
+                option.rect.y(),
+                option.rect.width() - 2,
+                option.rect.height(),
+            )
 
             is_dead = self.ground_object.is_dead
             for building in self.buildings:
@@ -85,10 +104,22 @@ class QMapGroundObject(QMapObject):
                     is_dead = False
                     break
 
+            if cat == "aa":
+                has_threat = False
+                for group in self.ground_object.groups:
+                    if self.ground_object.threat_range(group).distance_in_meters > 0:
+                        has_threat = True
+
             if not is_dead and not self.control_point.captured:
-                painter.drawPixmap(rect, const.ICONS[cat + enemy_icons])
+                if cat == "aa" and not has_threat:
+                    painter.drawPixmap(rect, const.ICONS["nothreat" + enemy_icons])
+                else:
+                    painter.drawPixmap(rect, const.ICONS[cat + enemy_icons])
             elif not is_dead:
-                painter.drawPixmap(rect, const.ICONS[cat + player_icons])
+                if cat == "aa" and not has_threat:
+                    painter.drawPixmap(rect, const.ICONS["nothreat" + player_icons])
+                else:
+                    painter.drawPixmap(rect, const.ICONS[cat + player_icons])
             else:
                 painter.drawPixmap(rect, const.ICONS["destroyed"])
 
@@ -114,13 +145,22 @@ class QMapGroundObject(QMapObject):
                 units_dead += len(g.units_losts)
 
         if units_dead + units_alive > 0:
-            ratio = float(units_alive)/(float(units_dead) + float(units_alive))
+            ratio = float(units_alive) / (float(units_dead) + float(units_alive))
             bar_height = ratio * option.rect.height()
-            painter.fillRect(option.rect.x(), option.rect.y(), 2,
-                             option.rect.height(),
-                             QBrush(const.COLORS["dark_red"]))
-            painter.fillRect(option.rect.x(), option.rect.y(), 2, bar_height,
-                             QBrush(const.COLORS["green"]))
+            painter.fillRect(
+                option.rect.x(),
+                option.rect.y(),
+                2,
+                option.rect.height(),
+                QBrush(const.COLORS["dark_red"]),
+            )
+            painter.fillRect(
+                option.rect.x(),
+                option.rect.y(),
+                2,
+                bar_height,
+                QBrush(const.COLORS["green"]),
+            )
 
     def on_click(self) -> None:
         self.ground_object_dialog = QGroundObjectMenu(
@@ -128,6 +168,6 @@ class QMapGroundObject(QMapObject):
             self.ground_object,
             self.buildings,
             self.control_point,
-            self.game
+            self.game,
         )
         self.ground_object_dialog.show()

@@ -1,3 +1,6 @@
+import logging
+import timeit
+from datetime import timedelta
 from typing import List, Optional
 
 from PySide2.QtWidgets import (
@@ -16,17 +19,16 @@ from gen.flights.traveltime import TotEstimator
 from qt_ui.models import GameModel
 from qt_ui.widgets.QBudgetBox import QBudgetBox
 from qt_ui.widgets.QFactionsInfos import QFactionsInfos
+from qt_ui.widgets.QIntelBox import QIntelBox
 from qt_ui.widgets.clientslots import MaxPlayerCount
 from qt_ui.windows.GameUpdateSignal import GameUpdateSignal
-from qt_ui.windows.QWaitingForMissionResultWindow import \
-    QWaitingForMissionResultWindow
+from qt_ui.windows.QWaitingForMissionResultWindow import QWaitingForMissionResultWindow
 from qt_ui.windows.settings.QSettingsWindow import QSettingsWindow
 from qt_ui.windows.stats.QStatsWindow import QStatsWindow
 from qt_ui.widgets.QConditionsWidget import QConditionsWidget
 
 
 class QTopPanel(QFrame):
-
     def __init__(self, game_model: GameModel):
         super(QTopPanel, self).__init__()
         self.game_model = game_model
@@ -39,7 +41,7 @@ class QTopPanel(QFrame):
     def game(self) -> Optional[Game]:
         return self.game_model.game
 
-    def init_ui(self):        
+    def init_ui(self):
         self.conditionsWidget = QConditionsWidget()
         self.budgetBox = QBudgetBox(self.game)
 
@@ -71,6 +73,8 @@ class QTopPanel(QFrame):
         self.statistics.setProperty("style", "btn-primary")
         self.statistics.clicked.connect(self.openStatisticsWindow)
 
+        self.intel_box = QIntelBox(self.game)
+
         self.buttonBox = QGroupBox("Misc")
         self.buttonBoxLayout = QHBoxLayout()
         self.buttonBoxLayout.addWidget(self.settings)
@@ -79,23 +83,23 @@ class QTopPanel(QFrame):
 
         self.proceedBox = QGroupBox("Proceed")
         self.proceedBoxLayout = QHBoxLayout()
-        self.proceedBoxLayout.addLayout(
-            MaxPlayerCount(self.game_model.ato_model))
+        self.proceedBoxLayout.addLayout(MaxPlayerCount(self.game_model.ato_model))
         self.proceedBoxLayout.addWidget(self.passTurnButton)
         self.proceedBoxLayout.addWidget(self.proceedButton)
         self.proceedBox.setLayout(self.proceedBoxLayout)
 
         self.layout = QHBoxLayout()
-        
+
         self.layout.addWidget(self.factionsInfos)
         self.layout.addWidget(self.conditionsWidget)
         self.layout.addWidget(self.budgetBox)
+        self.layout.addWidget(self.intel_box)
         self.layout.addWidget(self.buttonBox)
         self.layout.addStretch(1)
         self.layout.addWidget(self.proceedBox)
 
-        self.layout.setContentsMargins(0,0,0,0)
-        
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(self.layout)
 
     def setGame(self, game: Optional[Game]):
@@ -106,6 +110,7 @@ class QTopPanel(QFrame):
         self.statistics.setEnabled(True)
 
         self.conditionsWidget.setCurrentTurn(game.turn, game.conditions)
+        self.intel_box.set_game(game)
         self.budgetBox.setGame(game)
         self.factionsInfos.setGame(game)
 
@@ -125,9 +130,12 @@ class QTopPanel(QFrame):
         self.subwindow.show()
 
     def passTurn(self):
+        start = timeit.default_timer()
         self.game.pass_turn(no_action=True)
         GameUpdateSignal.get_instance().updateGame(self.game)
         self.proceedButton.setEnabled(True)
+        end = timeit.default_timer()
+        logging.info("Skipping turn took %s", timedelta(seconds=end - start))
 
     def negative_start_packages(self) -> List[Package]:
         packages = []
@@ -158,48 +166,50 @@ class QTopPanel(QFrame):
         result = QMessageBox.question(
             self,
             "Continue without client slots?",
-            ("No client slots have been created for players. Continuing will "
-             "allow the AI to perform the mission, but players will be unable "
-             "to participate.<br />"
-             "<br />"
-             "To add client slots for players, select a package from the "
-             "Packages panel on the left of the main window, and then a flight "
-             "from the Flights panel below the Packages panel. The edit button "
-             "below the Flights panel will allow you to edit the number of "
-             "client slots in the flight. Each client slot allows one player.<br />"
-             "<br />Click 'Yes' to continue with an AI only mission"
-             "<br />Click 'No' if you'd like to make more changes."),
+            (
+                "No client slots have been created for players. Continuing will "
+                "allow the AI to perform the mission, but players will be unable "
+                "to participate.<br />"
+                "<br />"
+                "To add client slots for players, select a package from the "
+                "Packages panel on the left of the main window, and then a flight "
+                "from the Flights panel below the Packages panel. The edit button "
+                "below the Flights panel will allow you to edit the number of "
+                "client slots in the flight. Each client slot allows one player.<br />"
+                "<br />Click 'Yes' to continue with an AI only mission"
+                "<br />Click 'No' if you'd like to make more changes."
+            ),
             QMessageBox.No,
-            QMessageBox.Yes
+            QMessageBox.Yes,
         )
         return result == QMessageBox.Yes
 
-    def confirm_negative_start_time(self,
-                                    negative_starts: List[Package]) -> bool:
-        formatted = '<br />'.join(
+    def confirm_negative_start_time(self, negative_starts: List[Package]) -> bool:
+        formatted = "<br />".join(
             [f"{p.primary_task} {p.target.name}" for p in negative_starts]
         )
         mbox = QMessageBox(
             QMessageBox.Question,
             "Continue with past start times?",
-            ("Some flights in the following packages have start times set "
-             "earlier than mission start time:<br />"
-             "<br />"
-             f"{formatted}<br />"
-             "<br />"
-             "Flight start times are estimated based on the package TOT, so it "
-             "is possible that not all flights will be able to reach the "
-             "target area at their assigned times.<br />"
-             "<br />"
-             "You can either continue with the mission as planned, with the "
-             "misplanned flights potentially flying too fast and/or missing "
-             "their rendezvous; automatically fix negative TOTs; or cancel "
-             "mission start and fix the packages manually."),
-            parent=self
+            (
+                "Some flights in the following packages have start times set "
+                "earlier than mission start time:<br />"
+                "<br />"
+                f"{formatted}<br />"
+                "<br />"
+                "Flight start times are estimated based on the package TOT, so it "
+                "is possible that not all flights will be able to reach the "
+                "target area at their assigned times.<br />"
+                "<br />"
+                "You can either continue with the mission as planned, with the "
+                "misplanned flights potentially flying too fast and/or missing "
+                "their rendezvous; automatically fix negative TOTs; or cancel "
+                "mission start and fix the packages manually."
+            ),
+            parent=self,
         )
         auto = mbox.addButton("Fix TOTs automatically", QMessageBox.ActionRole)
-        ignore = mbox.addButton("Continue without fixing",
-                                QMessageBox.DestructiveRole)
+        ignore = mbox.addButton("Continue without fixing", QMessageBox.DestructiveRole)
         cancel = mbox.addButton(QMessageBox.Cancel)
         mbox.setEscapeButton(cancel)
         mbox.exec_()
@@ -227,12 +237,12 @@ class QTopPanel(QFrame):
             closest_cps[1],
             self.game.theater.controlpoints[0].position,
             self.game.player_name,
-            self.game.enemy_name)
+            self.game.enemy_name,
+        )
 
         unit_map = self.game.initiate_event(game_event)
-        waiting = QWaitingForMissionResultWindow(game_event, self.game,
-                                                 unit_map)
+        waiting = QWaitingForMissionResultWindow(game_event, self.game, unit_map)
         waiting.show()
 
-    def budget_update(self, game:Game):
+    def budget_update(self, game: Game):
         self.budgetBox.setGame(game)

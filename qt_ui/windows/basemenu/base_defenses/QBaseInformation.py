@@ -7,14 +7,15 @@ from PySide2.QtWidgets import (
     QWidget,
 )
 
-from game.theater import Airport, ControlPoint
-from qt_ui.windows.basemenu.base_defenses.QBaseDefenseGroupInfo import \
-    QBaseDefenseGroupInfo
+from game.theater import Airport, ControlPoint, Fob
+from game.theater.theatergroundobject import BuildingGroundObject
+from qt_ui.windows.basemenu.base_defenses.QBaseDefenseGroupInfo import (
+    QBaseDefenseGroupInfo,
+)
 
 
 class QBaseInformation(QFrame):
-
-    def __init__(self, cp:ControlPoint, airport:Airport, game):
+    def __init__(self, cp: ControlPoint, airport: Airport, game):
         super(QBaseInformation, self).__init__()
         self.cp = cp
         self.airport = airport
@@ -30,9 +31,18 @@ class QBaseInformation(QFrame):
         scroll_content.setLayout(task_box_layout)
 
         for g in self.cp.ground_objects:
-            if g.airbase_group:
-                group_info = QBaseDefenseGroupInfo(self.cp, g, self.game)
-                task_box_layout.addWidget(group_info)
+            # Airbase groups are the objects that are hidden on the map because
+            # they're shown in the base menu.
+            if not g.airbase_group:
+                continue
+
+            # Of these, we need to ignore the FOB structure itself since that's
+            # not supposed to be targetable.
+            if isinstance(self.cp, Fob) and isinstance(g, BuildingGroundObject):
+                continue
+
+            group_info = QBaseDefenseGroupInfo(self.cp, g, self.game)
+            task_box_layout.addWidget(group_info)
 
         scroll_content.setLayout(task_box_layout)
         scroll = QScrollArea()

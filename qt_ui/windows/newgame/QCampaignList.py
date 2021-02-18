@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from PySide2 import QtGui
 from PySide2.QtCore import QItemSelectionModel
@@ -14,6 +14,11 @@ from PySide2.QtWidgets import QAbstractItemView, QListView
 import qt_ui.uiconstants as CONST
 from game.theater import ConflictTheater
 
+PERF_FRIENDLY = 0
+PERF_MEDIUM = 1
+PERF_HARD = 2
+PERF_NASA = 3
+
 
 @dataclass(frozen=True)
 class Campaign:
@@ -21,6 +26,9 @@ class Campaign:
     icon_name: str
     authors: str
     description: str
+    recommended_player_faction: str
+    recommended_enemy_faction: str
+    performance: Union[PERF_FRIENDLY, PERF_MEDIUM, PERF_HARD, PERF_NASA]
     data: Dict[str, Any]
     path: Path
 
@@ -35,8 +43,11 @@ class Campaign:
             f"Terrain_{sanitized_theater}",
             data.get("authors", "???"),
             data.get("description", ""),
+            data.get("recommended_player_faction", "USA 2005"),
+            data.get("recommended_enemy_faction", "Russia 1990"),
+            data.get("performance", 0),
             data,
-            path
+            path,
         )
 
     def load_theater(self) -> ConflictTheater:
@@ -58,7 +69,6 @@ def load_campaigns() -> List[Campaign]:
 
 
 class QCampaignItem(QStandardItem):
-
     def __init__(self, campaign: Campaign) -> None:
         super(QCampaignItem, self).__init__()
         self.setIcon(QtGui.QIcon(CONST.ICONS[campaign.icon_name]))
@@ -67,7 +77,6 @@ class QCampaignItem(QStandardItem):
 
 
 class QCampaignList(QListView):
-
     def __init__(self, campaigns: List[Campaign]) -> None:
         super(QCampaignList, self).__init__()
         self.model = QStandardItemModel(self)

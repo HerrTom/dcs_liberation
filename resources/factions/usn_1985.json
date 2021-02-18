@@ -4,15 +4,16 @@
   "authors": "HerrTom",
   "description": "<p>Highway to the Danger Zone! For Tomcat lovers.</p>",
   "aircrafts": [
+    "AH_1W",
     "F_4E",
     "F_14A_135_GR",
     "F_14B",
     "S_3B",
-    "UH_1H",
-    "AH_1W"
+    "SH_60B",
+    "UH_1H"
   ],
   "awacs": [
-    "E_3A"
+    "E_2C"
   ],
   "tankers": [
     "S_3B_Tanker"
@@ -20,7 +21,8 @@
   "frontline_units": [
     "MBT_M60A3_Patton",
     "APC_M113",
-    "APC_M1025_HMMWV"
+    "APC_M1025_HMMWV",
+    "AAA_Vulcan_M163"
   ],
   "artillery_units": [
     "SPH_M109_Paladin",
@@ -32,6 +34,7 @@
   "infantry_units": [
     "Infantry_M4",
     "Soldier_M249",
+    "_2B11_mortar",
     "Stinger_MANPADS"
   ],
   "air_defenses": [

@@ -1,6 +1,7 @@
 import logging
 from typing import Type
 
+from PySide2.QtCore import Qt
 from PySide2.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -16,6 +17,8 @@ from game import db
 from game.event import UnitsDeliveryEvent
 from game.theater import ControlPoint
 from qt_ui.models import GameModel
+from qt_ui.windows.GameUpdateSignal import GameUpdateSignal
+from qt_ui.windows.QUnitInfoWindow import QUnitInfoWindow
 
 
 class QRecruitBehaviour:
@@ -25,7 +28,7 @@ class QRecruitBehaviour:
     bought_amount_labels = None
     maximum_units = -1
     recruitable_types = []
-    BUDGET_FORMAT = "Available Budget: <b>${}M</b>"
+    BUDGET_FORMAT = "Available Budget: <b>${:.2f}M</b>"
 
     def __init__(self) -> None:
         self.bought_amount_labels = {}
@@ -35,7 +38,6 @@ class QRecruitBehaviour:
 
     @property
     def pending_deliveries(self) -> UnitsDeliveryEvent:
-        assert self.cp.pending_unit_deliveries
         return self.cp.pending_unit_deliveries
 
     @property
@@ -46,8 +48,13 @@ class QRecruitBehaviour:
     def budget(self, value: int) -> None:
         self.game_model.game.budget = value
 
-    def add_purchase_row(self, unit_type: Type[UnitType], layout: QLayout,
-                         row: int, disabled: bool = False) -> int:
+    def add_purchase_row(
+        self,
+        unit_type: Type[UnitType],
+        layout: QLayout,
+        row: int,
+        disabled: bool = False,
+    ) -> int:
         exist = QGroupBox()
         exist.setProperty("style", "buy-box")
         exist.setMaximumHeight(36)
@@ -58,8 +65,16 @@ class QRecruitBehaviour:
         existing_units = self.cp.base.total_units_of_type(unit_type)
         scheduled_units = self.pending_deliveries.units.get(unit_type, 0)
 
-        unitName = QLabel("<b>" + db.unit_type_name_2(unit_type) + "</b>")
-        unitName.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+        unitName = QLabel(
+            "<b>"
+            + db.unit_get_expanded_info(
+                self.game_model.game.player_country, unit_type, "name"
+            )
+            + "</b>"
+        )
+        unitName.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        )
 
         existing_units = QLabel(str(existing_units))
         existing_units.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
@@ -96,44 +111,64 @@ class QRecruitBehaviour:
         sell.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
         sell.clicked.connect(lambda: self.sell(unit_type))
 
+        info = QGroupBox()
+        info.setProperty("style", "buy-box")
+        info.setMaximumHeight(36)
+        info.setMinimumHeight(36)
+        infolayout = QHBoxLayout()
+        info.setLayout(infolayout)
+
+        unitInfo = QPushButton("i")
+        unitInfo.setProperty("style", "btn-info")
+        unitInfo.setDisabled(disabled)
+        unitInfo.setMinimumSize(16, 16)
+        unitInfo.setMaximumSize(16, 16)
+        unitInfo.clicked.connect(lambda: self.info(unit_type))
+        unitInfo.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
+
         existLayout.addWidget(unitName)
-        existLayout.addItem(QSpacerItem(20, 0, QSizePolicy.Minimum, QSizePolicy.Minimum))
+        existLayout.addItem(
+            QSpacerItem(20, 0, QSizePolicy.Minimum, QSizePolicy.Minimum)
+        )
         existLayout.addWidget(existing_units)
-        existLayout.addItem(QSpacerItem(20, 0, QSizePolicy.Minimum, QSizePolicy.Minimum))
+        existLayout.addItem(
+            QSpacerItem(20, 0, QSizePolicy.Minimum, QSizePolicy.Minimum)
+        )
         existLayout.addWidget(price)
 
         buysellayout.addWidget(sell)
         buysellayout.addWidget(amount_bought)
         buysellayout.addWidget(buy)
 
+        infolayout.addWidget(unitInfo)
+
         layout.addWidget(exist, row, 1)
         layout.addWidget(buysell, row, 2)
+        layout.addWidget(info, row, 3)
 
         return row + 1
 
     def _update_count_label(self, unit_type: Type[UnitType]):
 
-        self.bought_amount_labels[unit_type].setText("<b>{}</b>".format(
-            unit_type in self.pending_deliveries.units and "{}".format(self.pending_deliveries.units[unit_type]) or "0"
-        ))
+        self.bought_amount_labels[unit_type].setText(
+            "<b>{}</b>".format(
+                unit_type in self.pending_deliveries.units
+                and "{}".format(self.pending_deliveries.units[unit_type])
+                or "0"
+            )
+        )
 
-        self.existing_units_labels[unit_type].setText("<b>{}</b>".format(
-            self.cp.base.total_units_of_type(unit_type)
-        ))
+        self.existing_units_labels[unit_type].setText(
+            "<b>{}</b>".format(self.cp.base.total_units_of_type(unit_type))
+        )
 
-    def update_available_budget(self):
-        parent = self.parent()
-        while parent.objectName != "menuDialogue":
-            parent = parent.parent()
-        for child in parent.children():
-            if child.objectName() == "budgetField":
-                child.setText(
-                    QRecruitBehaviour.BUDGET_FORMAT.format(self.budget))
+    def update_available_budget(self) -> None:
+        GameUpdateSignal.get_instance().updateBudget(self.game_model.game)
 
     def buy(self, unit_type: Type[UnitType]):
         price = db.PRICES[unit_type]
         if self.budget >= price:
-            self.pending_deliveries.deliver({unit_type: 1})
+            self.pending_deliveries.order({unit_type: 1})
             self.budget -= price
         else:
             # TODO : display modal warning
@@ -142,19 +177,18 @@ class QRecruitBehaviour:
         self.update_available_budget()
 
     def sell(self, unit_type):
-        if self.pending_deliveries.units.get(unit_type, 0) > 0:
+        if self.pending_deliveries.available_next_turn(unit_type) > 0:
             price = db.PRICES[unit_type]
             self.budget += price
-            self.pending_deliveries.units[unit_type] = self.pending_deliveries.units[unit_type] - 1
+            self.pending_deliveries.sell({unit_type: 1})
             if self.pending_deliveries.units[unit_type] == 0:
                 del self.pending_deliveries.units[unit_type]
-        elif self.cp.base.total_units_of_type(unit_type) > 0:
-            price = db.PRICES[unit_type]
-            self.budget += price
-            self.cp.base.commit_losses({unit_type: 1})
-
         self._update_count_label(unit_type)
         self.update_available_budget()
+
+    def info(self, unit_type):
+        self.info_window = QUnitInfoWindow(self.game_model.game, unit_type)
+        self.info_window.show()
 
     def set_maximum_units(self, maximum_units):
         """
