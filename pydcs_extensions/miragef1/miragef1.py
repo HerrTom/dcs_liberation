@@ -273,9 +273,6 @@ class MirageF1(PlaneType):
         class Thailand(Enum):
             F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
 
-        class USSR(Enum):
-            F1C_100_Vanille_Chocolat_Worn = "F1C-100 Vanille Chocolat Worn"
-
     
     class Pylon1:
         Smokewinder___red = (1, Weapons.Smokewinder___red)
