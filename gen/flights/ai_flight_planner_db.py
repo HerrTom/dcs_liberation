@@ -1,4 +1,5 @@
 import logging
+from pydcs_extensions.etendard.etendard import ETENDARD_IV
 from typing import List, Type
 
 from dcs.helicopters import (
@@ -97,6 +98,7 @@ from pydcs_extensions.f22a.f22a import F_22A
 from pydcs_extensions.hercules.hercules import Hercules
 from pydcs_extensions.mb339.mb339 import MB_339PAN
 from pydcs_extensions.su57.su57 import Su_57
+from pydcs_extensions.miragef1.miragef1 import MirageF1
 
 # All aircraft lists are in priority order. Aircraft higher in the list will be
 # preferred over those lower in the list.
@@ -131,6 +133,7 @@ CAP_CAPABLE = [
     MiG_21Bis,
     Mirage_2000_5,
     M_2000C,
+    MirageF1,
     F_5E_3,
     MiG_19P,
     A_4E_C,
@@ -195,6 +198,8 @@ CAS_CAPABLE = [
     UH_1H,
     MiG_15bis,
     M_2000C,
+    MirageF1,
+    ETENDARD_IV,
     F_5E_3,
     F_86F_Sabre,
     C_101CC,
@@ -300,6 +305,7 @@ STRIKE_CAPABLE = [
     S_3B,
     A_4E_C,
     M_2000C,
+    MirageF1,
     MiG_27K,
     MiG_21Bis,
     MiG_15bis,

@@ -4,6 +4,8 @@ from pydcs_extensions.hercules.hercules import Hercules
 from pydcs_extensions.highdigitsams import highdigitsams
 from pydcs_extensions.mb339.mb339 import MB_339PAN
 from pydcs_extensions.su57.su57 import Su_57
+from pydcs_extensions.miragef1.miragef1 import MirageF1
+from pydcs_extensions.etendard.etendard import ETENDARD_IV
 import pydcs_extensions.frenchpack.frenchpack as frenchpack
 
 MODDED_AIRPLANES = [
@@ -12,6 +14,8 @@ MODDED_AIRPLANES = [
     Su_57,
     F_22A,
     Hercules,
+    MirageF1,
+    ETENDARD_IV,
 ]
 MODDED_VEHICLES = [
     frenchpack._FIELD_HIDE,

@@ -6,6 +6,8 @@
   "doctrine": "coldwar",
   "aircrafts": [
     "M_2000C",
+    "MirageF1",
+    "ETENDARD_IV",
     "SA342M",
     "SA342L",
     "SA342Mistral"

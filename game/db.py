@@ -174,6 +174,8 @@ from pydcs_extensions.f22a.f22a import F_22A
 from pydcs_extensions.hercules.hercules import Hercules
 from pydcs_extensions.mb339.mb339 import MB_339PAN
 from pydcs_extensions.su57.su57 import Su_57
+from pydcs_extensions.miragef1.miragef1 import MirageF1
+from pydcs_extensions.etendard.etendard import ETENDARD_IV
 
 UNITINFOTEXT_PATH = Path("./resources/units/unit_info_text.json")
 
@@ -182,6 +184,8 @@ plane_map["F-22A"] = F_22A
 plane_map["MB-339PAN"] = MB_339PAN
 plane_map["Su-57"] = Su_57
 plane_map["Hercules"] = Hercules
+plane_map["MirageF1"] = MirageF1
+plane_map["Etendard-IV"] = ETENDARD_IV
 
 vehicle_map["FieldHL"] = frenchpack._FIELD_HIDE
 vehicle_map["HARRIERH"] = frenchpack._FIELD_HIDE_SMALL
@@ -413,6 +417,8 @@ PRICES = {
     F_22A: 40,
     Tornado_IDS: 20,
     Tornado_GR4: 20,
+    MirageF1: 12,
+    ETENDARD_IV: 12,
     # bomber
     Su_17M4: 10,
     Su_25: 15,
@@ -749,6 +755,7 @@ UNIT_BY_TASK = {
         F_16C_50,
         M_2000C,
         Mirage_2000_5,
+        MirageF1,
         P_51D_30_NA,
         P_51D,
         MiG_29G,
@@ -816,6 +823,7 @@ UNIT_BY_TASK = {
         SH_60B,
         WingLoong_I,
         Hercules,
+        ETENDARD_IV,
     ],
     Transport: [IL_76MD, An_26B, An_30M, Yak_40, C_130],
     Refueling: [
@@ -1222,6 +1230,8 @@ PLANE_PAYLOAD_OVERRIDES: Dict[Type[PlaneType], Dict[Type[Task], str]] = {
     F_16C_50: COMMON_OVERRIDE,
     JF_17: COMMON_OVERRIDE,
     M_2000C: COMMON_OVERRIDE,
+    MirageF1: COMMON_OVERRIDE,
+    ETENDARD_IV: COMMON_OVERRIDE,
     MiG_15bis: COMMON_OVERRIDE,
     MiG_19P: COMMON_OVERRIDE,
     MiG_21Bis: COMMON_OVERRIDE,
@@ -1378,6 +1388,7 @@ CARRIER_CAPABLE = [
     SA342M,
     SA342Minigun,
     SA342Mistral,
+    ETENDARD_IV,
 ]
 
 LHA_CAPABLE = [
@@ -1523,7 +1534,7 @@ def unit_get_expanded_info(country_name: str, unit_type, request_type: str) -> s
     default_value = None
     faction_value = None
     with UNITINFOTEXT_PATH.open("r", encoding="utf-8") as fdata:
-        data = json.load(fdata, encoding="utf-8")
+        data = json.load(fdata)  # encoding was deprecated in 3.1
     type_exists = data.get(original_name)
     if type_exists is not None:
         for faction in type_exists:
