@@ -24,6 +24,7 @@ import qt_ui.uiconstants as CONST
 from game.game import Game
 from game.infos.information import Information
 from game.settings import Settings
+from game import db
 from qt_ui.widgets.QLabeledWidget import QLabeledWidget
 from qt_ui.widgets.spinsliders import TenthsSpinSlider
 from qt_ui.windows.GameUpdateSignal import GameUpdateSignal
@@ -610,6 +611,23 @@ class QSettingsWindow(QDialog):
         self.cheat_options = CheatSettingsBox(self.game, self.applySettings)
         self.cheatLayout.addWidget(self.cheat_options)
 
+        self.interventionBox = QGroupBox("Intervention")
+        self.interventionBox.setAlignment(Qt.AlignTop)
+        self.interventionBoxLayout = QGridLayout()
+        self.interventionBox.setLayout(self.interventionBoxLayout)
+
+        self.intervention_btn = QPushButton("Add OPFOR Intervention")
+        self.intervention_btn.setProperty("style", "btn-danger")
+        self.intervention_btn.clicked.connect(self.cheatIntervention)
+        self.intervention_choice = QComboBox()
+        for f in db.FACTIONS:
+            self.intervention_choice.addItem(f)
+
+        self.interventionBoxLayout.addWidget(self.intervention_btn, 0, 0)
+        self.interventionBoxLayout.addWidget(self.intervention_choice, 0, 1)
+
+        self.cheatLayout.addWidget(self.interventionBox, stretch=0)
+
         self.moneyCheatBox = QGroupBox("Money Cheat")
         self.moneyCheatBox.setAlignment(Qt.AlignTop)
         self.moneyCheatBoxLayout = QGridLayout()
@@ -645,6 +663,48 @@ class QSettingsWindow(QDialog):
             self.game.informations.append(
                 Information("CHEATER", "You are still a cheater !", self.game.turn)
             )
+        GameUpdateSignal.get_instance().updateGame(self.game)
+
+    def cheatIntervention(self):
+        currentFaction = db.FACTIONS[self.game.enemy_name]
+        newFactionName = self.intervention_choice.currentText()
+        newFaction = db.FACTIONS[newFactionName]
+        # update current faction roster with new units
+        for aircraft in newFaction.aircrafts:
+            if aircraft not in currentFaction.aircrafts:
+                currentFaction.aircrafts.append(aircraft)
+        for awacs in newFaction.awacs:
+            if awacs not in currentFaction.awacs:
+                currentFaction.awacs.append(awacs)
+        for tanker in newFaction.tankers:
+            if tanker not in currentFaction.tankers:
+                currentFaction.tankers.append(tanker)
+        for unit in newFaction.frontline_units:
+            if unit not in currentFaction.frontline_units:
+                currentFaction.frontline_units.append(unit)
+        for unit in newFaction.artillery_units:
+            if unit not in currentFaction.artillery_units:
+                currentFaction.artillery_units.append(unit)
+        for unit in newFaction.infantry_units:
+            if unit not in currentFaction.infantry_units:
+                currentFaction.infantry_units.append(unit)
+        for unit in newFaction.logistics_units:
+            if unit not in currentFaction.logistics_units:
+                currentFaction.logistics_units.append(unit)
+        for unit in newFaction.air_defenses:
+            if unit not in currentFaction.air_defenses:
+                currentFaction.air_defenses.append(unit)
+        for unit in newFaction.ewrs:
+            if unit not in currentFaction.ewrs:
+                currentFaction.ewrs.append(unit)
+
+        self.game.informations.append(
+            Information(
+                "INTERVENTION",
+                "Added intervention from {}".format(newFactionName),
+                self.game.turn,
+            )
+        )
         GameUpdateSignal.get_instance().updateGame(self.game)
 
     def applySettings(self):
